@@ -47,6 +47,22 @@ avformat_network_init();
    (sp   "AV_PICTURE_TYPE_SP"   "Switching Predicted")
    (bi   "AV_PICTURE_TYPE_BI"   "BI type")))
 
+(define AVSampleFormats
+  (foreign-enum
+   (none "AV_SAMPLE_FMT_NONE" "")
+   (u8   "AV_SAMPLE_FMT_U8"   "unsigned 8 bits")
+   (s16  "AV_SAMPLE_FMT_S16"  "signed 16 bits")
+   (s32  "AV_SAMPLE_FMT_S32"  "signed 32 bits")
+   (flt  "AV_SAMPLE_FMT_FLT"  "float")
+   (dbl  "AV_SAMPLE_FMT_DBL"  "double")
+   (u8p  "AV_SAMPLE_FMT_U8P"  "unsigned 8 bits planar")
+   (s16p "AV_SAMPLE_FMT_S16P" "signed 16 bits planar")
+   (s32p "AV_SAMPLE_FMT_S32P" "signed 32 bits planar")
+   (fltp "AV_SAMPLE_FMT_FLTP" "float planar")
+   (dblp "AV_SAMPLE_FMT_DBLP" "double planar")
+   (s64  "AV_SAMPLE_FMT_S64"  "signed 64 bits")
+   (s64p "AV_SAMPLE_FMT_S64P" "signed 64 bits planar")))
+
 (define (AVMediaType->int sym) (cond ((assoc sym AVMediaTypes) => cdr)  (else #f)))
 (define (int->AVMediaType int) (cond ((rassoc int AVMediaTypes) => car) (else #f)))
 
@@ -56,11 +72,11 @@ avformat_network_init();
 (define (AVPixelFormat->int sym) (cond ((assoc sym pixfmts) => cdr)  (else #f)))
 (define (int->AVPixelFormat int) (cond ((rassoc int pixfmts) => car) (else #f)))
 
+(define (AVSampleFormat->int sym) (cond ((assoc sym AVSampleFormats) => cdr)  (else #f)))
+(define (int->AVSampleFormat int) (cond ((rassoc int AVSampleFormats) => car) (else #f)))
+
 (define (AVCodecParameters->int sym) (cond ((assoc sym codecs) => cdr) (else #f)))
 (define (int->AVCodecParameters int) (cond ((rassoc int codecs) => car) (else #f)))
-
-(define int->video-format int->AVPixelFormat)
-(define video-format->int AVPixelFormat->int)
 
 (define-foreign-type AVPacket (c-pointer "AVPacket")
   (lambda (x) (AVPacket-ptr x))
@@ -245,16 +261,16 @@ avformat_network_init();
 
 (define (frame-format frame)
   (define format (frame-format* frame))
-  (cond ((< format 0) 'none)
-        ((frame-pict-type frame) (int->AVPixelFormat format))
-        ;;((not (zero? (frame-sample-rate frame))) 'TODO)
+  ;; trying to guess whether frame is video/audio
+  (cond ((frame-pict-type frame)                 (int->AVPixelFormat format))
+        ((not (zero? (frame-sample-rate frame))) (int->AVSampleFormat format))
         (else format)))
 
 (define (codecpar-format cp)
   (define format (codecpar-format* cp))
   (case (codecpar-type cp)
     ((video) (int->AVPixelFormat format))
-    ((audio) format) ;; TODO symbolize AVSampleFormat
+    ((audio) (int->AVSampleFormat format))
     (else format)))
 
 (define-record-printer AVCodecParameters
