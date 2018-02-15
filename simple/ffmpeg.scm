@@ -133,7 +133,7 @@ avformat_network_init();
 ;; ==================== AVPacket ====================
 
 (define (packet-init pkt) (foreign-lambda* void ((AVPacket pkt)) "av_init_packet(pkt);"))
-(define (packet)
+(define (make-packet)
   (define pkt ((foreign-lambda* AVPacket () "return(av_packet_alloc());")))
   (packet-init pkt)
   (set-finalizer!
@@ -142,16 +142,12 @@ avformat_network_init();
      (print "freeing " pkt)
      ((foreign-lambda* void ((AVPacket pkt)) "av_packet_free(&pkt);") pkt))))
 
+(define packet-unref (foreign-lambda void "av_packet_unref" AVPacket))
+
 (define (packet-stream-index pkt) (ƒget int ((AVPacket pkt)) "pkt->stream_index"))
 (define (packet-size         pkt) (ƒget int ((AVPacket pkt)) "pkt->size"))
 
-;; ==================== AVFrame ====================
 
-(define (make-frame #!key w h fmt)
-  (set-finalizer! ((foreign-lambda AVFrame "av_frame_alloc"))
-                  (lambda (x)
-                    (print "freeing frame " x)
-                    ((foreign-lambda* void ((AVFrame frame)) "av_frame_free(&frame);") x))))
 
 ;; ==================== AVFormatContext accessors ====================
 
@@ -168,14 +164,22 @@ avformat_network_init();
 
 (define (fmtx-filename fmtx) (ƒget c-string ((AVFormatContext fmtx)) "fmtx->filename"))
 
-(define (fmtx-read fmtx #!optional (pkt (packet)))
 
-  ;; TODO: check return value
-  ((foreign-lambda* int ((AVFormatContext fmtx)
-                         (AVPacket pkt))
-                    "return(av_read_frame(fmtx, pkt));")
-   fmtx pkt)
-  pkt)
+(define (wrap-send/receive ret success loc)
+  (cond ((zero? ret)                                   success)
+        ((= ret (foreign-value "AVERROR(EAGAIN)" int)) #f)
+        ((= ret (foreign-value "AVERROR_EOF" int))     #!eof)
+        ((= ret (foreign-value "AVERROR(EINVAL)" int)) (error loc "einval"))
+        ((= ret (foreign-value "AVERROR(ENOMEM)" int)) (error loc "nonmem"))
+        (else (error loc "unknown error" ret))))
+
+(define (fmtx-read fmtx #!optional (pkt (make-packet)))
+  (wrap-send/receive ((foreign-lambda* int ((AVFormatContext fmtx)
+                              (AVPacket pkt))
+                         "return(av_read_frame(fmtx, pkt));")
+                      fmtx pkt)
+                     pkt
+                     'fmtx-read))
 
 ;; ==================== AVCodecContext ====================
 (define-syntax define-getters
@@ -270,6 +274,15 @@ avformat_network_init();
   (frame-crop-bottom                    size_t                             "x->crop_bottom")
   (frame-crop-left                      size_t                             "x->crop_left")
   (frame-crop-right                     size_t                             "x->crop_right"))
+
+;; ==================== AVFrame ====================
+
+(define (make-frame #!key w h fmt)
+  (set-finalizer! ((foreign-lambda AVFrame "av_frame_alloc"))
+                  (lambda (x)
+                    (print "freeing frame " x)
+                    ((foreign-lambda* void ((AVFrame frame)) "av_frame_free(&frame);") x))))
+
 
 (define (frame-linesize frame plane)
   ((foreign-lambda* int ((AVFrame frame) (int plane)) "return(frame->linesize[plane]);") frame plane))
@@ -446,18 +459,12 @@ avformat_network_init();
                             cx codec))
   cx)
 
-(define (wrap-send/receive ret loc)
-  (cond ((zero? ret)                                   #t)
-        ((= ret (foreign-value "AVERROR(EAGAIN)" int)) #f)
-        ((= ret (foreign-value "AVERROR_EOF" int))     #!eof)
-        ((= ret (foreign-value "AVERROR(EINVAL)" int)) (error loc "einval"))
-        ((= ret (foreign-value "AVERROR(ENOMEM)" int)) (error loc "nonmem"))
-        (else (error loc "unknown error" ret))))
 
-(define (avcodec-send-packet cx pkt)     (wrap-send/receive ((foreign-lambda int "avcodec_send_packet"    AVCodecContext AVPacket) cx pkt)  'avcodec-send-packet))
-(define (avcodec-send-frame cx frame)    (wrap-send/receive ((foreign-lambda int "avcodec_send_frame"     AVCodecContext AVFrame) cx frame) 'avcodec-send-frame))
-(define (avcodec-receive-packet cx pkt)  (wrap-send/receive ((foreign-lambda int "avcodec_receive_packet" AVCodecContext AVPacket) cx pkt)  'avcodec-receive-packet))
-(define (avcodec-receive-frame cx frame) (wrap-send/receive ((foreign-lambda int "avcodec_receive_frame"  AVCodecContext AVFrame) cx frame) 'avcodec-receive-frame))
+
+(define (avcodec-send-packet cx pkt)     (wrap-send/receive ((foreign-lambda int "avcodec_send_packet"    AVCodecContext AVPacket) cx pkt)  #t 'avcodec-send-packet))
+(define (avcodec-send-frame cx frame)    (wrap-send/receive ((foreign-lambda int "avcodec_send_frame"     AVCodecContext AVFrame) cx frame) #t 'avcodec-send-frame))
+(define (avcodec-receive-packet cx pkt)  (wrap-send/receive ((foreign-lambda int "avcodec_receive_packet" AVCodecContext AVPacket) cx pkt)  #t 'avcodec-receive-packet))
+(define (avcodec-receive-frame cx frame) (wrap-send/receive ((foreign-lambda int "avcodec_receive_frame"  AVCodecContext AVFrame) cx frame) #t 'avcodec-receive-frame))
 
 (define (image-get-buffer-size format w h align)
   (let ((ret ((foreign-lambda int "av_image_get_buffer_size" AVPixelFormat int int int)
