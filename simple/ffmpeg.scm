@@ -7,6 +7,7 @@
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
+#include <libavfilter/avfilter.h>
 //#include <libavdevice/avdevice.h>
 //#include <libavutil/time.h>
 ")
@@ -16,6 +17,7 @@
                   "
 av_register_all();
 avformat_network_init();
+avfilter_register_all();
 "))
 
 (define-record AVPacket ptr)
@@ -25,6 +27,7 @@ avformat_network_init();
 (define-record AVCodec ptr)
 (define-record AVCodecContext ptr)
 (define-record AVCodecParameters ptr)
+(define-record AVFilter ptr)
 
 ;;(load "enum-pixfmts.so")
 (include "foreign-enum.scm")
@@ -112,6 +115,10 @@ avformat_network_init();
   (lambda (x)   (     AVCodec-ptr x))
   (lambda (ptr) (and ptr (make-AVCodec ptr))))
 
+(define-foreign-type AVFilter (c-pointer "AVFilter")
+  (lambda (x)   (     AVFilter-ptr x))
+  (lambda (ptr) (and ptr (make-AVFilter ptr))))
+
 (define-foreign-type AVCodecParameters (c-pointer "AVCodecParameters")
   (lambda (x)   (     AVCodecParameters-ptr x))
   (lambda (ptr) (and ptr (make-AVCodecParameters ptr))))
@@ -148,6 +155,14 @@ avformat_network_init();
 (define (packet-size         pkt) (ƒget int ((AVPacket pkt)) "pkt->size"))
 
 
+(define (packet-data pkt)
+  (define buf (make-u8vector (packet-size pkt)))
+  ((foreign-lambda* void (((c-pointer "AVPacket") pkt) (u8vector buf) (int size))
+                    "memcpy(buf, pkt->data, size);")
+   (AVPacket-ptr pkt)
+   buf
+   (packet-size pkt))
+  buf)
 
 ;; ==================== AVFormatContext accessors ====================
 
@@ -274,6 +289,11 @@ avformat_network_init();
   (frame-crop-bottom                    size_t                             "x->crop_bottom")
   (frame-crop-left                      size_t                             "x->crop_left")
   (frame-crop-right                     size_t                             "x->crop_right"))
+
+(define-getters ((AVFilter x))
+  (filter-name        c-string  "x->name")
+  (filter-description c-string  "x->description"))
+
 
 ;; ==================== AVFrame ====================
 
@@ -428,6 +448,8 @@ avformat_network_init();
 
 (define avcodec_find_decoder
   (foreign-lambda* AVCodec ((AVCodecID cid)) "return(avcodec_find_decoder(cid));"))
+(define (find-filter c)
+  ((foreign-lambda AVFilter "avfilter_get_by_name" c-string) c))
 
 (define avcodec_parameters_to_context
   (foreign-lambda int "avcodec_parameters_to_context"

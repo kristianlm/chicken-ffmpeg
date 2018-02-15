@@ -1,5 +1,5 @@
 
-LDFLAGS=-lavformat -lavcodec -lavutil
+LDFLAGS=-lavformat -lavcodec -lavutil -lavfilter
 
 main: main.scm ffmpeg.so
 	csc main.scm
