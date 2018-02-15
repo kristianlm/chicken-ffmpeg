@@ -1,6 +1,7 @@
 (use
- (only data-structures rassoc)
- (only srfi-1 list-tabulate))
+ (only data-structures rassoc conc)
+ (only srfi-1 list-tabulate)
+ (only srfi-4 make-u8vector))
 
 (foreign-declare "
 #include <libavcodec/avcodec.h>
@@ -24,7 +25,7 @@ avformat_network_init();
 (define-record AVCodecContext ptr)
 (define-record AVCodecParameters ptr)
 
-(load "pixfmts.so")
+(load "enum-pixfmts.so")
 (include "foreign-enum.scm")
 
 (define AVMediaTypes
@@ -211,8 +212,8 @@ avformat_network_init();
   (codecpar-seek-preroll           int                                  "cp->seek_preroll"))
 
 (define-getters ((AVFrame x))
-  (frame-data                      c-pointer                                                 "x->data")
-  (frame-linesize                  c-pointer                                "x->linesize")
+  (frame-data*                     c-pointer                                                 "x->data")
+  (frame-linesize*                 c-pointer                                "x->linesize")
   ;;(frame-**extended-data                uint8_t                            "x->**extended_data")
   (frame-width                          int                                "x->width")
   (frame-height                         int                                "x->height")
@@ -259,6 +260,36 @@ avformat_network_init();
   (frame-crop-left                      size_t                             "x->crop_left")
   (frame-crop-right                     size_t                             "x->crop_right"))
 
+(define (frame-linesize frame plane)
+  ((foreign-lambda* int ((AVFrame frame) (int plane)) "return(frame->linesize[plane]);") frame plane))
+
+
+(define (frame-data frame plane)
+
+  (define size (* (frame-height frame) (frame-linesize frame plane)))
+  (define buf (make-u8vector size))
+
+  ((foreign-lambda* void ((AVFrame frame)
+                          (int plane)
+                          (u8vector buf)
+                          (int size))
+                    "memcpy(buf, frame->data[plane], size);")
+   frame plane buf size)
+
+  buf)
+
+(define (frame-line frame plane line)
+  (define linesize (frame-linesize frame plane))
+  (define buf (make-u8vector linesize))
+  ((foreign-lambda* void ((AVFrame frame)
+                          (int plane)
+                          (int line)
+                          (u8vector buf)
+                          (int linesize))
+                    "memcpy(buf, frame->data[plane] + linesize * line, linesize);")
+   frame plane line buf linesize)
+  buf)
+
 (define (frame-format frame)
   (define format (frame-format* frame))
   ;; trying to guess whether frame is video/audio
@@ -272,6 +303,12 @@ avformat_network_init();
     ((video) (int->AVPixelFormat format))
     ((audio) (int->AVSampleFormat format))
     (else format)))
+
+(define (assert-ret-zero? ret) (unless (zero? ret) (error "fail" ret)))
+
+(define (frame-make-writable frame)
+  (assert-ret-zero?
+   ((foreign-lambda int "av_frame_make_writable" AVFrame) frame)))
 
 (define-record-printer AVCodecParameters
   (lambda (x p)
@@ -341,7 +378,7 @@ avformat_network_init();
                     "avformat_find_stream_info(fmtx, 0);")
    fmtx))
 
-(define (avformat_open_input url #!key (find-stream-info? #t))
+(define (avformat-open-input url #!key (find-stream-info? #t))
 
   (define fmtx ((foreign-lambda* AVFormatContext () "return(avformat_alloc_context());")))
 
@@ -352,7 +389,7 @@ avformat_network_init();
      fmtx url))
 
   (when (< ret 0)
-    ;; fmtx freed by avformat_open_input
+    ;; fmtx freed by avformat-open-input
     (error "cannot open input file" ret))
 
   (when find-stream-info?
@@ -398,38 +435,16 @@ avformat_network_init();
                             cx codec))
   cx)
 
-(define (avcodec-send-packet cx pkt)
-  ((foreign-lambda int "avcodec_send_packet" AVCodecContext AVPacket) cx pkt))
+(define (wrap-send/receive ret loc)
+  (cond ((zero? ret)                                   #t)
+        ((= ret (foreign-value "AVERROR(EAGAIN)" int)) #f)
+        ((= ret (foreign-value "AVERROR_EOF" int))     #!eof)
+        ((= ret (foreign-value "AVERROR(EINVAL)" int)) (error loc "einval"))
+        ((= ret (foreign-value "AVERROR(ENOMEM)" int)) (error loc "nonmem"))
+        (else (error loc "unknown error" ret))))
 
+(define (avcodec-send-packet cx pkt)     (wrap-send/receive ((foreign-lambda int "avcodec_send_packet"    AVCodecContext AVPacket) cx pkt)  'avcodec-send-packet))
+(define (avcodec-receive-packet cx pkt)  (wrap-send/receive ((foreign-lambda int "avcodec_receive_packet" AVCodecContext AVPacket) cx pkt)  'avcodec-receive-packet))
+(define (avcodec-send-frame cx frame)    (wrap-send/receive ((foreign-lambda int "avcodec_send_frame"     AVCodecContext AVFrame) cx frame) 'avcodec-send-frame))
+(define (avcodec-receive-frame cx frame) (wrap-send/receive ((foreign-lambda int "avcodec_receive_frame"  AVCodecContext AVFrame) cx frame) 'avcodec-receive-frame))
 
-(define (avcodec-receive-frame cx frame)
-  ((foreign-lambda int "avcodec_receive_frame" AVCodecContext AVFrame) cx frame))
-
-(define fmtx (avformat_open_input "/tmp/testsrc.mpg"))
-(define cx (codecx (fmtx-stream fmtx 0)))
-(define pkt (fmtx-read fmtx))
-
-(print "fmtx: " fmtx)
-(print "fmtx-streams fmtx:" (fmtx-streams fmtx))
-(print "cx: " cx)
-(print "pkt: " pkt)
-
-(print "send: " (avcodec-send-packet cx pkt))
-(print "send: " (avcodec-send-packet cx pkt))
-(print "send: " (avcodec-send-packet cx pkt))
-
-(define frame (make-frame))
-(print "frame: " frame)
-
-;; (for-each
-;;  (begin
-;;    (lambda (x) (print "nevermind"))
-;;    (lambda (filename)
-;;      (define fmtx (avformat_open_input filename))
-;;      (avformat_find_stream_info! fmtx)
-;;      (print "fmtx: " fmtx)
-;;      (av_dump_format! fmtx filename)
-;;      (print "streams" (fmtx-streams fmtx))))
-;;  (command-line-arguments))
-
-(repl)
