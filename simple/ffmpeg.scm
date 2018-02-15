@@ -1,3 +1,4 @@
+(use (only data-structures rassoc))
 
 (foreign-declare "
 #include <libavcodec/avcodec.h>
@@ -18,6 +19,28 @@ avformat_network_init();
 (define-record AVFrame ptr)
 (define-record AVCodecContext ptr)
 
+
+(define-syntax foreign-enum
+  (syntax-rules ()
+    ((_ ) '())
+    ((_ (type ENUM) rest ...)
+     (begin (print "GOIJOIJ: " 'type)
+            (cons (cons 'type (foreign-value ENUM int))
+                  (foreign-enum rest ...))))))
+
+(define AVMediaTypes
+  (foreign-enum
+   (unknown    "AVMEDIA_TYPE_UNKNOWN")
+   (video      "AVMEDIA_TYPE_VIDEO")
+   (audio      "AVMEDIA_TYPE_AUDIO")
+   (data       "AVMEDIA_TYPE_DATA")
+   (subtitle   "AVMEDIA_TYPE_SUBTITLE")
+   (attachment "AVMEDIA_TYPE_ATTACHMENT")
+   (nb         "AVMEDIA_TYPE_NB")))
+
+(define (AVMediaType->int sym) (cond ((assoc sym AVMediaTypes) => cdr)  (else #f)))
+(define (int->AVMediaType int) (cond ((rassoc int AVMediaTypes) => car) (else #f)))
+
 (define-foreign-type AVFormatContext (c-pointer "AVFormatContext")
   (lambda (x) (AVFormatContext-ptr x))
   (lambda (ptr) (make-AVFormatContext ptr)))
@@ -30,29 +53,23 @@ avformat_network_init();
   (lambda (x)   (     AVCodecContext-ptr x))
   (lambda (ptr) (make-AVCodecContext ptr)))
 
+(define-foreign-type AVMediaType int
+  (lambda (sym) (AVMediaType->int sym))
+  (lambda (int) (int->AVMediaType int)))
+
 ;; AVStream getters
 
-(define-syntax ƒgetter
+(define-syntax ƒget
   (syntax-rules ()
     ((_ type-return ((type arg)) body_str)
      ((foreign-lambda* type-return ((type arg)) "return(" body_str ");")
       arg))))
 
-(define (stream-index stm)   (ƒgetter int ((AVStream stm)) "stm->index"))
-(define (stream-id    stm)   (ƒgetter int ((AVStream stm)) "stm->codecpar->codec_id"))
-(define (stream-type stm)    (ƒgetter int ((AVStream stm)) "stm->codecpar->codec_type"))
-(define (stream-bitrate stm) (ƒgetter int ((AVStream stm)) "stm->codecpar->bit_rate"))
+(define (stream-index stm)   (ƒget int ((AVStream stm)) "stm->index"))
+(define (stream-id    stm)   (ƒget int ((AVStream stm)) "stm->codecpar->codec_id"))
+(define (stream-type stm)    (ƒget AVMediaType ((AVStream stm)) "stm->codecpar->codec_type"))
+(define (stream-bitrate stm) (ƒget int ((AVStream stm)) "stm->codecpar->bit_rate"))
 
-
-;; enum AVMediaType {
-;;     AVMEDIA_TYPE_UNKNOWN = -1,  ///< Usually treated as AVMEDIA_TYPE_DATA
-;;     AVMEDIA_TYPE_VIDEO,
-;;     AVMEDIA_TYPE_AUDIO,
-;;     AVMEDIA_TYPE_DATA,          ///< Opaque data information usually continuous
-;;     AVMEDIA_TYPE_SUBTITLE,
-;;     AVMEDIA_TYPE_ATTACHMENT,    ///< Opaque data information usually sparse
-;;     AVMEDIA_TYPE_NB
-;; }
 
 (define-record-printer AVStream
   (lambda (stm p)
