@@ -19,24 +19,18 @@ avformat_network_init();
 (define-record AVFrame ptr)
 (define-record AVCodecContext ptr)
 
-
-(define-syntax foreign-enum
-  (syntax-rules ()
-    ((_ ) '())
-    ((_ (type ENUM) rest ...)
-     (begin (print "GOIJOIJ: " 'type)
-            (cons (cons 'type (foreign-value ENUM int))
-                  (foreign-enum rest ...))))))
+(load "pixfmts.so")
+(include "foreign-enum.scm")
 
 (define AVMediaTypes
   (foreign-enum
-   (unknown    "AVMEDIA_TYPE_UNKNOWN")
-   (video      "AVMEDIA_TYPE_VIDEO")
-   (audio      "AVMEDIA_TYPE_AUDIO")
-   (data       "AVMEDIA_TYPE_DATA")
-   (subtitle   "AVMEDIA_TYPE_SUBTITLE")
-   (attachment "AVMEDIA_TYPE_ATTACHMENT")
-   (nb         "AVMEDIA_TYPE_NB")))
+   (unknown    "AVMEDIA_TYPE_UNKNOWN"    "")
+   (video      "AVMEDIA_TYPE_VIDEO"      "")
+   (audio      "AVMEDIA_TYPE_AUDIO"      "")
+   (data       "AVMEDIA_TYPE_DATA"       "")
+   (subtitle   "AVMEDIA_TYPE_SUBTITLE"   "")
+   (attachment "AVMEDIA_TYPE_ATTACHMENT" "")
+   (nb         "AVMEDIA_TYPE_NB"         "")))
 
 (define (AVMediaType->int sym) (cond ((assoc sym AVMediaTypes) => cdr)  (else #f)))
 (define (int->AVMediaType int) (cond ((rassoc int AVMediaTypes) => car) (else #f)))
