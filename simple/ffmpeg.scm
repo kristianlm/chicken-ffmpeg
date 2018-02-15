@@ -6,6 +6,7 @@
 (foreign-declare "
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavutil/imgutils.h>
 //#include <libavdevice/avdevice.h>
 //#include <libavutil/time.h>
 ")
@@ -25,7 +26,7 @@ avformat_network_init();
 (define-record AVCodecContext ptr)
 (define-record AVCodecParameters ptr)
 
-(load "enum-pixfmts.so")
+;;(load "enum-pixfmts.so")
 (include "foreign-enum.scm")
 
 (define AVMediaTypes
@@ -119,6 +120,10 @@ avformat_network_init();
   (lambda (sym) (if (symbol? sym) (AVCodecParameters->int sym) sym))
   (lambda (int) (int->AVCodecParameters int)))
 
+(define-foreign-type AVPixelFormat int
+  (lambda (sym) (if (symbol? sym) (AVPixelFormat->int sym) sym))
+  (lambda (int) (int->AVPixelFormat int)))
+
 (define-syntax ƒget
   (syntax-rules ()
     ((_ rtype ((type arg)) body_str)
@@ -177,8 +182,14 @@ avformat_network_init();
   (syntax-rules ()
     ((_ ((argtype argname)) ) (begin))
     ((_ ((argtype argname)) (name  rtype  str) rest ...)
-     (begin (define name (foreign-lambda* rtype ((argtype argname)) "return(" str ");"))
-            (define-getters ((argtype argname)) rest ...)))))
+     (begin
+       (define name
+         (getter-with-setter
+          (foreign-lambda* rtype ((argtype argname)) "return(" str ");")
+          (lambda (x v)
+            ((foreign-lambda* void ((argtype argname) (rtype val))
+                                     str " = val;") x v))))
+       (define-getters ((argtype argname)) rest ...)))))
 
 (define-getters ((AVCodecParameters cp))
   (codecpar-type                   AVMediaType                          "cp->codec_type")
@@ -212,8 +223,8 @@ avformat_network_init();
   (codecpar-seek-preroll           int                                  "cp->seek_preroll"))
 
 (define-getters ((AVFrame x))
-  (frame-data*                     c-pointer                                                 "x->data")
-  (frame-linesize*                 c-pointer                                "x->linesize")
+  ;;(frame-data*                     c-pointer                                                 "x->data")
+  ;;(frame-linesize*                 c-pointer                                "x->linesize")
   ;;(frame-**extended-data                uint8_t                            "x->**extended_data")
   (frame-width                          int                                "x->width")
   (frame-height                         int                                "x->height")
@@ -444,7 +455,14 @@ avformat_network_init();
         (else (error loc "unknown error" ret))))
 
 (define (avcodec-send-packet cx pkt)     (wrap-send/receive ((foreign-lambda int "avcodec_send_packet"    AVCodecContext AVPacket) cx pkt)  'avcodec-send-packet))
-(define (avcodec-receive-packet cx pkt)  (wrap-send/receive ((foreign-lambda int "avcodec_receive_packet" AVCodecContext AVPacket) cx pkt)  'avcodec-receive-packet))
 (define (avcodec-send-frame cx frame)    (wrap-send/receive ((foreign-lambda int "avcodec_send_frame"     AVCodecContext AVFrame) cx frame) 'avcodec-send-frame))
+(define (avcodec-receive-packet cx pkt)  (wrap-send/receive ((foreign-lambda int "avcodec_receive_packet" AVCodecContext AVPacket) cx pkt)  'avcodec-receive-packet))
 (define (avcodec-receive-frame cx frame) (wrap-send/receive ((foreign-lambda int "avcodec_receive_frame"  AVCodecContext AVFrame) cx frame) 'avcodec-receive-frame))
+
+(define (image-get-buffer-size format w h align)
+  (let ((ret ((foreign-lambda int "av_image_get_buffer_size" AVPixelFormat int int int)
+              format w h align)))
+    (if (< ret 0)
+        (error 'image-get-buffer-size "unknown error" ret)
+        ret)))
 
