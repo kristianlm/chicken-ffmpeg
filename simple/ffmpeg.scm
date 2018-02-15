@@ -181,7 +181,7 @@ avfilter_register_all();
 
 
 (define (wrap-send/receive ret success loc)
-  (cond ((zero? ret)                                   success)
+  (cond ((>= ret 0)                                   success)
         ((= ret (foreign-value "AVERROR(EAGAIN)" int)) #f)
         ((= ret (foreign-value "AVERROR_EOF" int))     #!eof)
         ((= ret (foreign-value "AVERROR(EINVAL)" int)) (error loc "einval"))
@@ -290,6 +290,23 @@ avfilter_register_all();
   (frame-crop-left                      size_t                             "x->crop_left")
   (frame-crop-right                     size_t                             "x->crop_right"))
 
+(define-getters ((AVCodecContext x))
+  (codecx-width int "x->width")
+  (codecx-height int "x->height")
+  (coodex-pix-fmt AVPixelFormat "x->pix_fmt")
+  (codecx-bit-rate integer64 "x->bit_rate")
+  ;;(codecx-time-base AVRational "x->time_base")
+  ;;(codecx-framerate AVRational "x->framerate")
+  )
+
+(define-getters ((AVCodec x))
+  (codec-name      c-string  "x->name")
+  (codec-long-name c-string  "x->long_name")
+  (codec-type      AVMediaType "x->type")
+  (codec-id*       int         "x->id")
+  (codec-id        AVCodecID   "x->id"))
+
+
 (define-getters ((AVFilter x))
   (filter-name        c-string  "x->name")
   (filter-description c-string  "x->description"))
@@ -303,10 +320,16 @@ avfilter_register_all();
                     (print "freeing frame " x)
                     ((foreign-lambda* void ((AVFrame frame)) "av_frame_free(&frame);") x))))
 
+(define frame-unref (foreign-lambda void "av_frame_unref" AVFrame))
+
 
 (define (frame-linesize frame plane)
   ((foreign-lambda* int ((AVFrame frame) (int plane)) "return(frame->linesize[plane]);") frame plane))
 
+
+(define (frame-data* frame plane)
+  ((foreign-lambda* c-pointer ((AVFrame frame) (int plane)) "return(frame->data[plane]);")
+   frame plane))
 
 (define (frame-data frame plane)
 
@@ -389,7 +412,15 @@ avfilter_register_all();
 (define-record-printer AVCodec
   (lambda (x p)
     (display "#<AVCodec " p)
-    (display (AVCodec-ptr x) p)
+    (display (codec-type x) p) (display ":" p) (display (codec-id x) p)
+    (display " \"" p) (display (codec-long-name x) p) (display "\"" p)
+    (display ">" p)))
+
+(define-record-printer AVFilter
+  (lambda (x p)
+    (display "#<AVFilter " p)
+    (display (filter-name x) p)
+    (display " \"" p) (display (filter-description x) p) (display "\"" p)
     (display ">" p)))
 
 (define-record-printer AVCodecContext
@@ -446,8 +477,16 @@ avfilter_register_all();
        ((foreign-lambda* void ((AVFormatContext fmtx)) "avformat_close_input(&fmtx);")
         fmtx))))
 
-(define avcodec_find_decoder
-  (foreign-lambda* AVCodec ((AVCodecID cid)) "return(avcodec_find_decoder(cid));"))
+(define (find-decoder c)
+  (if (string? c)
+      ((foreign-lambda AVCodec "avcodec_find_decoder_by_name" c-string) c)
+      ((foreign-lambda AVCodec "avcodec_find_decoder" AVCodecID) c)))
+
+(define (find-encoder c)
+  (if (string? c)
+      ((foreign-lambda AVCodec "avcodec_find_encoder_by_name" c-string) c)
+      ((foreign-lambda AVCodec "avcodec_find_encoder" AVCodecID) c)))
+
 (define (find-filter c)
   ((foreign-lambda AVFilter "avfilter_get_by_name" c-string) c))
 
@@ -455,33 +494,34 @@ avfilter_register_all();
   (foreign-lambda int "avcodec_parameters_to_context"
                   AVCodecContext AVCodecParameters))
 
-(define (codecx stream/codec #!optional cp)
+(define (avcodec-open cx codec)
+  (print "avcodec_open2: "
+         ((foreign-lambda* int ((AVCodecContext cx) (AVCodec codec))
+                           "return(avcodec_open2(cx, codec, NULL));")
+          cx codec)))
+
+(define (avcodec-alloc-context codec)
+  (set-finalizer!
+   ((foreign-lambda* AVCodecContext ((AVCodec codec))
+                     "return(avcodec_alloc_context3(codec));")
+    codec)
+   (lambda (cx)
+     (print "freeing " cx)
+     ((foreign-lambda* void ((AVCodecContext cx)) "avcodec_free_context(&cx);") cx))))
+
+(define (codecx stream/codec #!optional cp (open? #t))
 
   (define codec
     (if (AVStream? stream/codec)
         (begin (set! cp (stream-codecpar stream/codec))
-               (avcodec_find_decoder (codecpar-id cp)))
+               (find-decoder (codecpar-id cp)))
         stream/codec))
 
   (assert (AVCodec? codec))
-  (define cx ((foreign-lambda* AVCodecContext ((AVCodec codec))
-                               "return(avcodec_alloc_context3(codec));")
-              codec))
-
-  (set-finalizer!
-   cx
-   (lambda (cx)
-     (print "freeing " cx)
-     ((foreign-lambda* void ((AVCodecContext cx)) "avcodec_free_context(&cx);") cx)))
-
+  (define cx (avcodec-alloc-context codec))
   (when cp (avcodec_parameters_to_context cx cp))
-
-  (print "avcodec_open2: " ((foreign-lambda* int ((AVCodecContext cx) (AVCodec codec))
-                                             "return(avcodec_open2(cx, codec, NULL));")
-                            cx codec))
+  (when open? (avcodec-open cx codec))
   cx)
-
-
 
 (define (avcodec-send-packet cx pkt)     (wrap-send/receive ((foreign-lambda int "avcodec_send_packet"    AVCodecContext AVPacket) cx pkt)  #t 'avcodec-send-packet))
 (define (avcodec-send-frame cx frame)    (wrap-send/receive ((foreign-lambda int "avcodec_send_frame"     AVCodecContext AVFrame) cx frame) #t 'avcodec-send-frame))
@@ -495,3 +535,7 @@ avfilter_register_all();
         (error 'image-get-buffer-size "unknown error" ret)
         ret)))
 
+(define (frame-get-buffer frame align)
+  (wrap-send/receive
+   ((foreign-lambda int "av_frame_get_buffer" AVFrame int) frame align)
+   #t 'frame-get-buffer))
