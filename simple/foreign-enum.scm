@@ -3,6 +3,9 @@
   (syntax-rules ()
     ((_ ) '())
 
+    ((_ (type ENUM) rest ...)
+     (foreign-enum (type ENUM "") rest ...))
+
     ((_ (type ENUM  description) rest ...)
      (cons (cons 'type (foreign-value ENUM int))
            (foreign-enum rest ...)))

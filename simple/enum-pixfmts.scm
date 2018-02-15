@@ -7,6 +7,8 @@
 
 (include "foreign-enum.scm")
 
+(include "enum-codecs.scm")
+
 (define pixfmts
   (foreign-enum
    (none                "AV_PIX_FMT_NONE"            "")
