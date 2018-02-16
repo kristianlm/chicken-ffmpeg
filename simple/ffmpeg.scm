@@ -578,3 +578,6 @@ avfilter_register_all();
   (wrap-send/receive
    ((foreign-lambda int "av_frame_get_buffer" AVFrame int) frame align)
    #t 'frame-get-buffer))
+
+(define (avfilter-graph-parse-ptr )
+  ((foreign-lambda int "avfilter_graph_parse_ptr" AVFilterGraph c-string AVFilterInOut AVFilterInOut)))

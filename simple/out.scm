@@ -2,7 +2,15 @@
 (load "enum-pixfmts.so")
 (load "ffmpeg.so")
 
-(print (find-filter "abuffer"))
+(define F (avformat-open-input "testsrc" "lavfi"))
+
+(port-for-each
+ (lambda (pkt)
+   (print pkt))
+ (let ((pkt (make-packet)))
+   (lambda ()
+     (packet-unref pkt)
+     (fmtx-read F pkt))))
 
 
 ;; (foreign-declare "
