@@ -397,6 +397,12 @@ avfilter_register_all();
   (assert-ret-zero?
    ((foreign-lambda int "av_frame_make_writable" AVFrame) frame)))
 
+
+;; ==================== AVStream accessors ====================
+
+(define (stream-index stm)   (ƒget int ((AVStream stm)) "stm->index"))
+(define (stream-codecpar stm) (ƒget AVCodecParameters ((AVStream stm)) "stm->codecpar"))
+
 (define-record-printer AVCodecParameters
   (lambda (x p)
     (define type (codecpar-type x))
@@ -409,11 +415,6 @@ avfilter_register_all();
            (display " size:" p) (display (codecpar-width x) p)
            (display "x" p)      (display (codecpar-height x) p)))
     (display ">" p)))
-
-;; ==================== AVStream accessors ====================
-
-(define (stream-index stm)   (ƒget int ((AVStream stm)) "stm->index"))
-(define (stream-codecpar stm) (ƒget AVCodecParameters ((AVStream stm)) "stm->codecpar"))
 
 (define-record-printer AVPacket
   (lambda (pkt p)
