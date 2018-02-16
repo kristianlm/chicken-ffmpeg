@@ -123,7 +123,7 @@ avfilter_register_all();
   (lambda (ptr) (and ptr (make-AVFilter ptr))))
 
 (define-foreign-type AVInputFormat (c-pointer "AVInputFormat")
-  (lambda (x)   (     AVInputFormat-ptr x))
+  (lambda (x)   (and x   (AVInputFormat-ptr x)))
   (lambda (ptr) (and ptr (make-AVInputFormat ptr))))
 
 (define-foreign-type AVOutputFormat (c-pointer "AVOutputFormat")
@@ -486,15 +486,19 @@ avfilter_register_all();
                     "avformat_find_stream_info(fmtx, 0);")
    fmtx))
 
-(define (avformat-open-input url #!key (find-stream-info? #t))
+(define (avformat-open-input url #!optional ifmt #!key (find-stream-info? #t))
 
   (define fmtx ((foreign-lambda* AVFormatContext () "return(avformat_alloc_context());")))
 
+  (when (string? ifmt)
+    (set! ifmt (find-input-format ifmt)))
+
   (define ret
     ((foreign-lambda* int ((AVFormatContext fmtx)
-                           (c-string url))
-                      "return(avformat_open_input(&fmtx, url, NULL, NULL));")
-     fmtx url))
+                           (c-string url)
+                           (AVInputFormat ifmt))
+                      "return(avformat_open_input(&fmtx, url, ifmt, NULL));")
+     fmtx url ifmt))
 
   (when (< ret 0)
     ;; fmtx freed by avformat-open-input

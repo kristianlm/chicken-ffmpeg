@@ -2,6 +2,7 @@
 (load "ffmpeg.so")
 
 (define fmtx (avformat-open-input "/tmp/testsrc.mpg"))
+;;(define fmtx (avformat-open-input "testsrc" "lavfi")) ;; <-- obs, not yup420p
 (define cx (codecx (fmtx-stream fmtx 0)))
 (define pkt (fmtx-read fmtx))
 
