@@ -1,4 +1,4 @@
 ;; -*- scheme -*-
-(compile -s -J ffmpeg-module.scm -o ffmpeg.so -lavcodec -lavformat -lavutil)
+(compile -s -J ffmpeg-module.scm -o ffmpeg.so -lavcodec -lavformat -lavutil -lavfilter -lavdevice)
 (compile -s ffmpeg.import.scm)
 (install-extension 'ffmpeg '("ffmpeg.so" "ffmpeg.import.so"))

@@ -8,13 +8,14 @@
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
 #include <libavfilter/avfilter.h>
-//#include <libavdevice/avdevice.h>
+#include <libavdevice/avdevice.h>
 //#include <libavutil/time.h>
 ")
 
 ;; ==================== init ====================
 ((foreign-lambda* void ()
                   "
+avdevice_register_all();
 av_register_all();
 avformat_network_init();
 avfilter_register_all();
@@ -28,6 +29,8 @@ avfilter_register_all();
 (define-record AVCodecContext ptr)
 (define-record AVCodecParameters ptr)
 (define-record AVFilter ptr)
+(define-record AVInputFormat ptr)
+(define-record AVOutputFormat ptr)
 
 ;;(load "enum-pixfmts.so")
 (include "foreign-enum.scm")
@@ -119,6 +122,14 @@ avfilter_register_all();
   (lambda (x)   (     AVFilter-ptr x))
   (lambda (ptr) (and ptr (make-AVFilter ptr))))
 
+(define-foreign-type AVInputFormat (c-pointer "AVInputFormat")
+  (lambda (x)   (     AVInputFormat-ptr x))
+  (lambda (ptr) (and ptr (make-AVInputFormat ptr))))
+
+(define-foreign-type AVOutputFormat (c-pointer "AVOutputFormat")
+  (lambda (x)   (     AVOutputFormat-ptr x))
+  (lambda (ptr) (and ptr (make-AVOutputFormat ptr))))
+
 (define-foreign-type AVCodecParameters (c-pointer "AVCodecParameters")
   (lambda (x)   (     AVCodecParameters-ptr x))
   (lambda (ptr) (and ptr (make-AVCodecParameters ptr))))
@@ -209,6 +220,9 @@ avfilter_register_all();
             ((foreign-lambda* void ((argtype argname) (rtype val))
                                      str " = val;") x v))))
        (define-getters ((argtype argname)) rest ...)))))
+
+(define-getters ((AVFormatContext x))
+  (fmtx-output-format    AVOutputFormat "x->oformat"))
 
 (define-getters ((AVCodecParameters cp))
   (codecpar-type                   AVMediaType                          "cp->codec_type")
@@ -310,6 +324,12 @@ avfilter_register_all();
 (define-getters ((AVFilter x))
   (filter-name        c-string  "x->name")
   (filter-description c-string  "x->description"))
+
+(define-getters ((AVInputFormat x))
+  (input-format-name        c-string  "x->name"))
+
+(define-getters ((AVOutputFormat x))
+  (output-format-name        c-string  "x->name"))
 
 
 ;; ==================== AVFrame ====================
@@ -423,6 +443,18 @@ avfilter_register_all();
     (display " \"" p) (display (filter-description x) p) (display "\"" p)
     (display ">" p)))
 
+(define-record-printer AVInputFormat
+  (lambda (x p)
+    (display "#<AVInputFormat " p)
+    (display (input-format-name x) p)
+    (display ">" p)))
+
+(define-record-printer AVOutputFormat
+  (lambda (x p)
+    (display "#<AVOutputFormat " p)
+    (display (output-format-name x) p)
+    (display ">" p)))
+
 (define-record-printer AVCodecContext
   (lambda (x p)
     (display "#<AVCodecContext " p)
@@ -489,6 +521,8 @@ avfilter_register_all();
 
 (define (find-filter c)
   ((foreign-lambda AVFilter "avfilter_get_by_name" c-string) c))
+
+(define (find-input-format c) ((foreign-lambda AVInputFormat "av_find_input_format" c-string) c))
 
 (define avcodec_parameters_to_context
   (foreign-lambda int "avcodec_parameters_to_context"
