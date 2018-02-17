@@ -76,39 +76,40 @@ avfilter_register_all();
    (s64  "AV_SAMPLE_FMT_S64"  "signed 64 bits")
    (s64p "AV_SAMPLE_FMT_S64P" "signed 64 bits planar")))
 
-(define (AVMediaType->int sym) (cond ((assoc sym AVMediaTypes) => cdr)  (else #f)))
+(define (AVMediaType->int sym) (cond ((assoc sym AVMediaTypes) => cdr)  (else (error "unknown media type" sym))))
 (define (int->AVMediaType int) (cond ((rassoc int AVMediaTypes) => car) (else #f)))
 
-(define (AVPictureType->int sym) (cond ((assoc sym AVPictureTypes) => cdr)  (else #f)))
+(define (AVPictureType->int sym) (cond ((assoc sym AVPictureTypes) => cdr)  (else (error "unknown picture type" sym))))
 (define (int->AVPictureType int) (cond ((rassoc int AVPictureTypes) => car) (else #f)))
 
-(define (AVPixelFormat->int sym) (cond ((assoc sym pixfmts) => cdr)  (else #f)))
+(define (AVPixelFormat->int* sym) (cond ((assoc sym pixfmts) => cdr)  (else #f)))
+(define (AVPixelFormat->int sym) (cond ((assoc sym pixfmts) => cdr)  (else (error "unknown pixel format" sym))))
 (define (int->AVPixelFormat int) (cond ((rassoc int pixfmts) => car) (else #f)))
 
-(define (AVSampleFormat->int sym) (cond ((assoc sym AVSampleFormats) => cdr)  (else #f)))
+(define (AVSampleFormat->int sym) (cond ((assoc sym AVSampleFormats) => cdr)  (else (error "unknown sample format" sym))))
 (define (int->AVSampleFormat int) (cond ((rassoc int AVSampleFormats) => car) (else #f)))
 
-(define (AVCodecParameters->int sym) (cond ((assoc sym codecs) => cdr) (else #f)))
-(define (int->AVCodecParameters int) (cond ((rassoc int codecs) => car) (else #f)))
+(define (AVCodecID->int sym) (cond ((assoc sym codecs) => cdr) (else (error "unknown codec" sym))))
+(define (int->AVCodecID int) (cond ((rassoc int codecs) => car) (else #f)))
 
 (define-foreign-type AVPacket (c-pointer "AVPacket")
-  (lambda (x) (AVPacket-ptr x))
+  (lambda (x)   (and x   (AVPacket-ptr x)))
   (lambda (ptr) (and ptr (make-AVPacket ptr))))
 
 (define-foreign-type AVFormatContext (c-pointer "AVFormatContext")
-  (lambda (x) (AVFormatContext-ptr x))
+  (lambda (x)   (and x   (AVFormatContext-ptr x)))
   (lambda (ptr) (and ptr (make-AVFormatContext ptr))))
 
 (define-foreign-type AVStream (c-pointer "AVStream")
-  (lambda (x)   (     AVStream-ptr x))
+  (lambda (x)   (and x   (AVStream-ptr x)))
   (lambda (ptr) (and ptr (make-AVStream ptr))))
 
 (define-foreign-type AVCodecContext (c-pointer "AVCodecContext")
-  (lambda (x)   (     AVCodecContext-ptr x))
+  (lambda (x)   (and x   (AVCodecContext-ptr x)))
   (lambda (ptr) (and ptr (make-AVCodecContext ptr))))
 
 (define-foreign-type AVFrame (c-pointer "AVFrame")
-  (lambda (x) (and x (AVFrame-ptr x)))
+  (lambda (x)   (and x   (AVFrame-ptr x)))
   (lambda (ptr) (and ptr (make-AVFrame ptr))))
 
 (define-foreign-type AVMediaType int
@@ -120,19 +121,19 @@ avfilter_register_all();
   (lambda (int) (int->AVPictureType int)))
 
 (define-foreign-type AVCodec (c-pointer "AVCodec")
-  (lambda (x)   (     AVCodec-ptr x))
+  (lambda (x)   (and x   (AVCodec-ptr x)))
   (lambda (ptr) (and ptr (make-AVCodec ptr))))
 
 (define-foreign-type AVFilter (c-pointer "AVFilter")
-  (lambda (x)   (     AVFilter-ptr x))
+  (lambda (x)   (and x   (AVFilter-ptr x)))
   (lambda (ptr) (and ptr (make-AVFilter ptr))))
 
 (define-foreign-type AVFilterContext (c-pointer "AVFilterContext")
-  (lambda (x)   (     AVFilterContext-ptr x))
+  (lambda (x)   (and x   (AVFilterContext-ptr x)))
   (lambda (ptr) (and ptr (make-AVFilterContext ptr))))
 
 (define-foreign-type AVFilterGraph (c-pointer "AVFilterGraph")
-  (lambda (x)   (     AVFilterGraph-ptr x))
+  (lambda (x)   (and x   (AVFilterGraph-ptr x)))
   (lambda (ptr) (and ptr (make-AVFilterGraph ptr))))
 
 (define-foreign-type AVInputFormat (c-pointer "AVInputFormat")
@@ -140,11 +141,11 @@ avfilter_register_all();
   (lambda (ptr) (and ptr (make-AVInputFormat ptr))))
 
 (define-foreign-type AVOutputFormat (c-pointer "AVOutputFormat")
-  (lambda (x)   (     AVOutputFormat-ptr x))
+  (lambda (x)   (and x   (AVOutputFormat-ptr x)))
   (lambda (ptr) (and ptr (make-AVOutputFormat ptr))))
 
 (define-foreign-type AVCodecParameters (c-pointer "AVCodecParameters")
-  (lambda (x)   (     AVCodecParameters-ptr x))
+  (lambda (x)   (and x   (AVCodecParameters-ptr x)))
   (lambda (ptr) (and ptr (make-AVCodecParameters ptr))))
 
 (define-foreign-type AVCodecID int
