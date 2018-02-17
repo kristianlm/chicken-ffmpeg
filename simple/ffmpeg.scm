@@ -1,7 +1,9 @@
 (use
  (only data-structures rassoc conc)
  (only srfi-1 list-tabulate)
- (only srfi-4 make-u8vector))
+ (only srfi-4 make-u8vector u8vector-length
+       blob->u8vector/shared s32vector->blob/shared
+       list->s32vector ))
 
 (foreign-declare "
 #include <libavcodec/avcodec.h>
@@ -672,6 +674,23 @@ avfilter_register_all();
 (define av-buffersink-type (foreign-lambda AVMediaType "av_buffersink_get_type" AVFilterContext))
 
 
+(define (obj->ptr obj)
+  ((cond
+    ((AVPacket? obj) AVPacket-ptr)
+    ((AVFormatContext? obj) AVFormatContext-ptr)
+    ((AVStream? obj) AVStream-ptr)
+    ((AVFrame? obj) AVFrame-ptr)
+    ((AVCodec? obj) AVCodec-ptr)
+    ((AVCodecContext? obj) AVCodecContext-ptr)
+    ((AVCodecParameters? obj) AVCodecParameters-ptr)
+    ((AVFilter? obj) AVFilter-ptr)
+    ((AVFilterContext? obj) AVFilterContext-ptr)
+    ((AVFilterGraph? obj) AVFilterGraph-ptr)
+    ((AVInputFormat? obj) AVInputFormat-ptr)
+    ((AVOutputFormat? obj) AVOutputFormat-ptr)
+    (else values))
+   obj))
+
 ;; TODO: pick pointers for known types
 (define (opt-serialize obj #!optional (opt_flags 0) (flags 0)
                        (key_val_sep #\=) (pairs_sep #\;))
@@ -683,5 +702,24 @@ avfilter_register_all();
                    "char* buffer;"
                    "av_opt_serialize(obj, opt_flags, flags, &buffer, key_val_sep, pairs_sep);"
                    "return(buffer);")
-  obj opt_flags flags key_val_sep pairs_sep))
+  (obj->ptr obj) opt_flags flags key_val_sep pairs_sep))
+
+(define opt/search-children (foreign-value "AV_OPT_SEARCH_CHILDREN" int))
+(define opt/fake-obj        (foreign-value "AV_OPT_SEARCH_FAKE_OBJ" int))
+
+(define (opt-set obj name val #!optional (search-flags opt/search-children))
+  (wrap-send/receive ((foreign-lambda int "av_opt_set_bin"
+                                      c-pointer
+                                      (const c-string) ;; name
+                                      u8vector         ;; val
+                                      int              ;; size
+                                      int)
+                      (obj->ptr obj) name val (u8vector-length val) search-flags)
+                     #t 'opt-set))
+
+(define (opt-set-pix-fmts obj pix-fmts)
+  (opt-set obj "pix_fmts"
+           (blob->u8vector/shared
+            (s32vector->blob/shared
+             (list->s32vector (map AVPixelFormat->int pix-fmts))))))
 
