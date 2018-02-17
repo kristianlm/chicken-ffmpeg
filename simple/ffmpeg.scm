@@ -415,12 +415,19 @@ avfilter_register_all();
         ((not (zero? (frame-sample-rate frame))) (int->AVSampleFormat format))
         (else format)))
 
-(define (codecpar-format cp)
-  (define format (codecpar-format* cp))
-  (case (codecpar-type cp)
-    ((video) (int->AVPixelFormat format))
-    ((audio) (int->AVSampleFormat format))
-    (else format)))
+(define codecpar-format
+  (getter-with-setter
+   (lambda (cp)
+     (define format (codecpar-format* cp))
+     (case (codecpar-type cp)
+       ((video) (int->AVPixelFormat format))
+       ((audio) (int->AVSampleFormat format))
+       (else format)))
+   (lambda (cp x)
+     (case (codecpar-type cp)
+       ((video) (set! (codecpar-format* cp) (AVPixelFormat->int x)))
+       ((audio) (set! (codecpar-format* cp) (AVSampleFormat->int x)))
+       (else (set! (codecpar-format* cp) x))))))
 
 (define (assert-ret-zero? ret) (unless (zero? ret) (error "fail" ret)))
 
