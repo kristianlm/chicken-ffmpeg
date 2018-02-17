@@ -408,12 +408,19 @@ avfilter_register_all();
    frame plane line buf linesize)
   buf)
 
-(define (frame-format frame)
-  (define format (frame-format* frame))
-  ;; trying to guess whether frame is video/audio
-  (cond ((frame-pict-type frame)                 (int->AVPixelFormat format))
-        ((not (zero? (frame-sample-rate frame))) (int->AVSampleFormat format))
-        (else format)))
+(define frame-format
+  (getter-with-setter
+   (lambda (frame)
+     (define format (frame-format* frame))
+     ;; trying to guess whether frame is video/audio
+     (cond ((frame-pict-type frame)                 (int->AVPixelFormat format))
+           ((not (zero? (frame-sample-rate frame))) (int->AVSampleFormat format))
+           (else format)))
+   (lambda (frame x)
+     (set! (frame-format* frame)
+           (cond ((AVPixelFormat->int* x)) ;; * => no error if missing
+                 ((AVSampleFormat->int x))
+                 (else x))))))
 
 (define codecpar-format
   (getter-with-setter
