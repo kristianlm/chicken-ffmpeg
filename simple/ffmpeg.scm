@@ -536,6 +536,7 @@ avfilter_register_all();
 
 (define (avformat-open-input url #!optional ifmt #!key (find-stream-info? #t))
 
+  ;; no finalizer yet because it's freed by avformat_open_input on error
   (define fmtx ((foreign-lambda* AVFormatContext () "return(avformat_alloc_context());")))
 
   (when (string? ifmt)
