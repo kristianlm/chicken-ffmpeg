@@ -283,7 +283,7 @@ avfilter_register_all();
   ;;(frame-**extended-data                uint8_t                            "x->**extended_data")
   (frame-width                          int                                "x->width")
   (frame-height                         int                                "x->height")
-  (frame-nb-samples                     int                                "x->nb_samples")
+  (frame-sample-count                   int                                "x->nb_samples")
   (frame-format*                        int                                "x->format")
   (frame-key-frame                      int                                "x->key_frame")
   (frame-pict-type                      AVPictureType                      "x->pict_type")
@@ -414,7 +414,8 @@ avfilter_register_all();
    (lambda (frame)
      (define format (frame-format* frame))
      ;; trying to guess whether frame is video/audio
-     (cond ((frame-pict-type frame)                 (int->AVPixelFormat format))
+     (cond ((and (not (zero? (frame-width  frame)))
+                 (not (zero? (frame-height frame)))) (int->AVPixelFormat format))
            ((not (zero? (frame-sample-rate frame))) (int->AVSampleFormat format))
            (else format)))
    (lambda (frame x)
@@ -537,8 +538,11 @@ avfilter_register_all();
   (lambda (x p)
     (display "#<AVFrame" p)
     (display " format:" p) (display (frame-format x) p)
-    (when (frame-pict-type x) ;; guessing this is a video frame
+    (when (and (not (zero? (frame-width x)))
+               (not (zero? (frame-height x))))
       (display " size:") (display (frame-width x) p) (display "x" p) (display (frame-height x) p))
+    (when (and (not (zero? (frame-sample-count frame))))
+      (display " samples: " (frame-sample-count frame)))
     (display ">" p)))
 
 (define (av_dump_format! fmtx #!optional (filename ""))
