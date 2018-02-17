@@ -611,10 +611,10 @@ avfilter_register_all();
   (when open? (avcodec-open cx codec))
   cx)
 
-(define (avcodec-send-packet cx pkt)     (wrap-send/receive ((foreign-lambda int "avcodec_send_packet"    AVCodecContext AVPacket) cx pkt)  #t 'avcodec-send-packet))
-(define (avcodec-send-frame cx frame)    (wrap-send/receive ((foreign-lambda int "avcodec_send_frame"     AVCodecContext AVFrame) cx frame) #t 'avcodec-send-frame))
-(define (avcodec-receive-packet cx pkt)  (wrap-send/receive ((foreign-lambda int "avcodec_receive_packet" AVCodecContext AVPacket) cx pkt)  #t 'avcodec-receive-packet))
-(define (avcodec-receive-frame cx frame) (wrap-send/receive ((foreign-lambda int "avcodec_receive_frame"  AVCodecContext AVFrame) cx frame) #t 'avcodec-receive-frame))
+(define (avcodec-send-packet cx pkt)     (wrap-send/receive ((foreign-lambda int "avcodec_send_packet"    AVCodecContext AVPacket) cx pkt)  pkt   'avcodec-send-packet))
+(define (avcodec-send-frame cx frame)    (wrap-send/receive ((foreign-lambda int "avcodec_send_frame"     AVCodecContext AVFrame) cx frame) frame 'avcodec-send-frame))
+(define (avcodec-receive-packet cx pkt)  (wrap-send/receive ((foreign-lambda int "avcodec_receive_packet" AVCodecContext AVPacket) cx pkt)  pkt   'avcodec-receive-packet))
+(define (avcodec-receive-frame cx frame) (wrap-send/receive ((foreign-lambda int "avcodec_receive_frame"  AVCodecContext AVFrame) cx frame) frame 'avcodec-receive-frame))
 
 (define (image-get-buffer-size format w h align)
   (let ((ret ((foreign-lambda int "av_image_get_buffer_size" AVPixelFormat int int int)
