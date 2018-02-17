@@ -149,8 +149,8 @@ avfilter_register_all();
   (lambda (ptr) (and ptr (make-AVCodecParameters ptr))))
 
 (define-foreign-type AVCodecID int
-  (lambda (sym) (if (symbol? sym) (AVCodecParameters->int sym) sym))
-  (lambda (int) (int->AVCodecParameters int)))
+  (lambda (sym) (if (symbol? sym) (AVCodecID->int sym) sym))
+  (lambda (int) (int->AVCodecID int)))
 
 (define-foreign-type AVPixelFormat int
   (lambda (sym) (if (symbol? sym) (AVPixelFormat->int sym) sym))
