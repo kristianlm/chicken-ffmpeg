@@ -243,6 +243,7 @@ avfilter_register_all();
 
 (define-getters ((AVFormatContext x))
   (fmtx-output-format    AVOutputFormat "x->oformat")
+  (fmtx-input-format     AVInputFormat  "x->iformat")
   (fmtx-filename         c-string       "x->filename" #f))
 
 (define-getters ((AVCodecParameters cp))
@@ -525,7 +526,9 @@ avfilter_register_all();
 
 (define-record-printer AVFormatContext
   (lambda (x p)
-    (display "#<AVFormatContext" p)
+    (display "#<AVFormatContext " p)
+    (when (fmtx-output-format x) (display (output-format-name (fmtx-output-format x)) p))
+    (when (fmtx-input-format  x) (display (input-format-name (fmtx-input-format x)) p))
     (display " \"") (display (fmtx-filename x) p) (display "\" " p)
     (display (fmtx-streams x) p)
     (display ">" p)))
