@@ -202,7 +202,6 @@ avfilter_register_all();
   (list-tabulate (fmtx-stream-count fmtx)
                  (lambda (idx) (fmtx-stream fmtx idx))))
 
-(define (fmtx-filename fmtx) (ƒget c-string ((AVFormatContext fmtx)) "fmtx->filename"))
 
 
 (define (wrap-send/receive ret success loc)
@@ -224,7 +223,14 @@ avfilter_register_all();
 ;; ==================== AVCodecContext ====================
 (define-syntax define-getters
   (syntax-rules ()
+
     ((_ ((argtype argname)) ) (begin))
+
+    ((_ ((argtype argname)) (name  rtype  str no-setter) rest ...)
+     (begin (define name
+              (foreign-lambda* rtype ((argtype argname)) "return(" str ");"))
+            (define-getters ((argtype argname)) rest ...)) )
+
     ((_ ((argtype argname)) (name  rtype  str) rest ...)
      (begin
        (define name
@@ -236,7 +242,8 @@ avfilter_register_all();
        (define-getters ((argtype argname)) rest ...)))))
 
 (define-getters ((AVFormatContext x))
-  (fmtx-output-format    AVOutputFormat "x->oformat"))
+  (fmtx-output-format    AVOutputFormat "x->oformat")
+  (fmtx-filename         c-string       "x->filename" #f))
 
 (define-getters ((AVCodecParameters cp))
   (codecpar-type                   AVMediaType                          "cp->codec_type")
@@ -504,7 +511,8 @@ avfilter_register_all();
 
 (define-record-printer AVFormatContext
   (lambda (x p)
-    (display "#<AVFormatContext " p)
+    (display "#<AVFormatContext" p)
+    (display " \"") (display (fmtx-filename x) p) (display "\" " p)
     (display (fmtx-streams x) p)
     (display ">" p)))
 
