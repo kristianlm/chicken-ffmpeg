@@ -9,6 +9,7 @@
 #include <libavutil/imgutils.h>
 #include <libavfilter/avfilter.h>
 #include <libavdevice/avdevice.h>
+#include <libavfilter/buffersink.h>
 //#include <libavutil/time.h>
 ")
 
@@ -29,6 +30,8 @@ avfilter_register_all();
 (define-record AVCodecContext ptr)
 (define-record AVCodecParameters ptr)
 (define-record AVFilter ptr)
+(define-record AVFilterContext ptr)
+(define-record AVFilterGraph ptr)
 (define-record AVInputFormat ptr)
 (define-record AVOutputFormat ptr)
 
@@ -103,7 +106,7 @@ avfilter_register_all();
   (lambda (ptr) (and ptr (make-AVCodecContext ptr))))
 
 (define-foreign-type AVFrame (c-pointer "AVFrame")
-  (lambda (x) (AVFrame-ptr x))
+  (lambda (x) (and x (AVFrame-ptr x)))
   (lambda (ptr) (and ptr (make-AVFrame ptr))))
 
 (define-foreign-type AVMediaType int
@@ -121,6 +124,14 @@ avfilter_register_all();
 (define-foreign-type AVFilter (c-pointer "AVFilter")
   (lambda (x)   (     AVFilter-ptr x))
   (lambda (ptr) (and ptr (make-AVFilter ptr))))
+
+(define-foreign-type AVFilterContext (c-pointer "AVFilterContext")
+  (lambda (x)   (     AVFilterContext-ptr x))
+  (lambda (ptr) (and ptr (make-AVFilterContext ptr))))
+
+(define-foreign-type AVFilterGraph (c-pointer "AVFilterGraph")
+  (lambda (x)   (     AVFilterGraph-ptr x))
+  (lambda (ptr) (and ptr (make-AVFilterGraph ptr))))
 
 (define-foreign-type AVInputFormat (c-pointer "AVInputFormat")
   (lambda (x)   (and x   (AVInputFormat-ptr x)))
@@ -325,6 +336,16 @@ avfilter_register_all();
   (filter-name        c-string  "x->name")
   (filter-description c-string  "x->description"))
 
+(define-getters ((AVFilterContext x))
+  (filterx-name        c-string  "x->name")
+  (filterx-filter      AVFilter  "x->filter"))
+;; ^ TODO: inputs outputs
+
+(define-getters ((AVFilterGraph x))
+  (filterg-filter-count    unsigned-int  "x->nb_filters")
+  (filterg-sink-links-count int "x->sink_links_count"))
+;; ^ TODO: filters
+
 (define-getters ((AVInputFormat x))
   (input-format-name        c-string  "x->name"))
 
@@ -442,6 +463,22 @@ avfilter_register_all();
     (display "#<AVFilter " p)
     (display (filter-name x) p)
     (display " \"" p) (display (filter-description x) p) (display "\"" p)
+    (display ">" p)))
+
+(define-record-printer AVFilterContext
+  (lambda (x p)
+    (display "#<AVFilterContext " p)
+    (display (filter-name (filterx-filter x)) p)
+    (display " " p)
+    (display (filterx-name x) p)
+    (display ">" p)))
+
+(define-record-printer AVFilterGraph
+  (lambda (x p)
+    (display "#<AVFilterGraph " p)
+    (display (filterg-filter-count x) p)
+    (display " " p)
+    (display (filterg-sink-links-count x) p)
     (display ">" p)))
 
 (define-record-printer AVInputFormat
@@ -579,5 +616,72 @@ avfilter_register_all();
    ((foreign-lambda int "av_frame_get_buffer" AVFrame int) frame align)
    #t 'frame-get-buffer))
 
-(define (avfilter-graph-parse-ptr )
-  ((foreign-lambda int "avfilter_graph_parse_ptr" AVFilterGraph c-string AVFilterInOut AVFilterInOut)))
+(define (make-flg)
+  (set-finalizer!
+   ((foreign-lambda AVFilterGraph "avfilter_graph_alloc"))
+   (lambda (x)
+     (print "freeing " x)
+     ((foreign-lambda* void ((AVFilterGraph x)) "avfilter_graph_free(&x);") x))))
+
+(define make-flx
+  (foreign-lambda AVFilterContext "avfilter_graph_alloc_filter"
+                  AVFilterGraph
+                  AVFilter
+                  c-string))
+
+(define (avfilter-graph-config fg)
+  (wrap-send/receive ((foreign-lambda int "avfilter_graph_config" AVFilterGraph c-pointer) fg #f)
+                     #t 'avfilter-graph-config))
+
+(define (avfilter-link src srcpad dst dstpad)
+  (wrap-send/receive ((foreign-lambda int "avfilter_link"
+                                      AVFilterContext unsigned-int
+                                      AVFilterContext unsigned-int)
+                      src srcpad dst dstpad)
+                     #t
+                     'avfilter-link))
+
+(define (av-buffersink-get-frame fx #!optional (frame (make-frame)))
+  (wrap-send/receive ((foreign-lambda int "av_buffersink_get_frame" AVFilterContext AVFrame)
+                      fx frame)
+                     frame 'av-buffersink-get-frame))
+
+(define (av-frame-get-buffer frame align)
+  (wrap-send/receive ((foreign-lambda int "av_frame_get_buffer" AVFrame int) frame align)
+                     #t 'av-frame-get-buffer))
+
+(define (avfilter-init-str fx c)
+  (wrap-send/receive ((foreign-lambda int "avfilter_init_str" AVFilterContext c-string) fx c)
+                     #t 'avfilter-init-str))
+
+;; (define (avfilter-graph-parse-ptr )
+;;   ((foreign-lambda int "avfilter_graph_parse_ptr" AVFilterGraph c-string AVFilterInOut AVFilterInOut)))
+
+(define (avfilter-graph-dump fg)
+  ((foreign-lambda* c-string* ((AVFilterGraph fg)
+                               ;;((c-pointer c-string) options)
+                               )
+                    "char *buf, *dst;"
+                    "buf = avfilter_graph_dump(fg, NULL);"
+                    "dst = malloc(strlen(buf) + 1);"
+                    "strcpy(dst, buf);"
+                    "av_free(buf);"
+                    "return(dst);")
+   fg))
+
+(define av-buffersink-type (foreign-lambda AVMediaType "av_buffersink_get_type" AVFilterContext))
+
+
+;; TODO: pick pointers for known types
+(define (opt-serialize obj #!optional (opt_flags 0) (flags 0)
+                       (key_val_sep #\=) (pairs_sep #\;))
+ ((foreign-lambda* c-string* ((c-pointer         obj)
+                              (int          opt_flags)
+                              (int          flags)
+                              ((const char) key_val_sep)
+                              ((const char) pairs_sep))
+                   "char* buffer;"
+                   "av_opt_serialize(obj, opt_flags, flags, &buffer, key_val_sep, pairs_sep);"
+                   "return(buffer);")
+  obj opt_flags flags key_val_sep pairs_sep))
+
