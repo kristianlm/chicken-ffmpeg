@@ -541,8 +541,8 @@ avfilter_register_all();
     (when (and (not (zero? (frame-width x)))
                (not (zero? (frame-height x))))
       (display " size:") (display (frame-width x) p) (display "x" p) (display (frame-height x) p))
-    (when (and (not (zero? (frame-sample-count frame))))
-      (display " samples: " (frame-sample-count frame)))
+    (when (and (not (zero? (frame-sample-count x))))
+      (display " samples: " (frame-sample-count x)))
     (display ">" p)))
 
 (define (av_dump_format! fmtx #!optional (filename ""))
