@@ -1,6 +1,7 @@
 (use
  (only data-structures rassoc conc)
  (only srfi-1 list-tabulate)
+ (only lolevel number-of-bytes)
  (only srfi-4 make-u8vector u8vector-length
        blob->u8vector/shared s32vector->blob/shared
        list->s32vector ))
@@ -126,7 +127,7 @@ avfilter_register_all();
 
 (define-foreign-type AVPacket (c-pointer "AVPacket")
   (lambda (x)   (and x   (AVPacket-ptr x)))
-  (lambda (ptr) (and ptr (make-AVPacket ptr))))
+  (lambda (ptr) (and ptr (make-AVPacket ptr #f))))
 
 (define-foreign-type AVFormatContext (c-pointer "AVFormatContext")
   (lambda (x)   (and x   (AVFormatContext-ptr x)))
@@ -207,6 +208,7 @@ avfilter_register_all();
 (define (make-packet #!optional buf)
   (define pkt ((foreign-lambda* AVPacket () "return(av_packet_alloc());")))
   (packet-init! pkt)
+  (when buf (packet-data-set! pkt buf))
   (set-finalizer!
    pkt
    (lambda (pkt)
@@ -226,15 +228,34 @@ avfilter_register_all();
   (packet-duration     int       "x->duration")
   (packet-pos          int       "x->pos"))
 
+(define input-buffer-padding-size
+  (foreign-value "AV_INPUT_BUFFER_PADDING_SIZE" int))
 
-(define (packet-data pkt)
-  (define buf (make-u8vector (packet-size pkt)))
-  ((foreign-lambda* void (((c-pointer "AVPacket") pkt) (u8vector buf) (int size))
-                    "memcpy(buf, pkt->data, size);")
-   (AVPacket-ptr pkt)
-   buf
-   (packet-size pkt))
-  buf)
+;; TODO: is packet-buffer-ref is writeable and big enough for data,
+;; just copy the data over without re-allocating.
+(define (packet-data-set! pkt data)
+  (wrap-send/receive
+   ((foreign-lambda* int ((AVPacket pkt)
+                          (u8vector data)
+                          (int size))
+                     "av_packet_unref(pkt);"
+                     "uint8_t *ptr = malloc(size + AV_INPUT_BUFFER_PADDING_SIZE);"
+                     "memcpy(ptr, data, size);"
+                     "return(av_packet_from_data(pkt, ptr, size));")
+    pkt data (u8vector-length data))
+   (void) 'packet-data-set!))
+
+(define packet-data
+  (getter-with-setter
+   (lambda (pkt)
+     (define buf (make-u8vector (packet-size pkt)))
+     ((foreign-lambda* void (((c-pointer "AVPacket") pkt) (u8vector buf) (int size))
+                       "memcpy(buf, pkt->data, size);")
+      (AVPacket-ptr pkt)
+      buf
+      (packet-size pkt))
+     buf)
+   packet-data-set!))
 
 ;; ==================== AVFormatContext accessors ====================
 
