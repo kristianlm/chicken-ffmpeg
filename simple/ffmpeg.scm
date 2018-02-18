@@ -455,9 +455,12 @@ avfilter_register_all();
 (define (assert-ret-zero? ret) (unless (zero? ret) (error "fail" ret)))
 
 (define (frame-make-writable frame)
-  (assert-ret-zero?
-   ((foreign-lambda int "av_frame_make_writable" AVFrame) frame)))
+  (wrap-send/receive
+   ((foreign-lambda int "av_frame_make_writable" AVFrame) frame)
+   frame 'frame-make-writable))
 
+(define (frame-writeable? frame)
+  (= 1 ((foreign-lambda int "av_frame_is_writable" AVFrame) frame)))
 
 ;; ==================== AVStream accessors ====================
 
