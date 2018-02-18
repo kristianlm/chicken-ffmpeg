@@ -57,6 +57,37 @@ avfilter_register_all();
                                      str " = val;") x v))))
        (define-getters ((argtype argname)) rest ...)))))
 
+;; ==================== FLAGS ====================
+
+(define opt/search-children (foreign-value "AV_OPT_SEARCH_CHILDREN" int))
+(define opt/fake-obj        (foreign-value "AV_OPT_SEARCH_FAKE_OBJ" int))
+
+(define fmt/nofile          (foreign-value "AVFMT_NOFILE" int))
+(define fmt/neednumber      (foreign-value "AVFMT_NEEDNUMBER" int))
+(define fmt/show-ids        (foreign-value "AVFMT_SHOW_IDS" int))
+(define fmt/globalheader    (foreign-value "AVFMT_GLOBALHEADER" int))
+(define fmt/notimestamps    (foreign-value "AVFMT_NOTIMESTAMPS" int))
+(define fmt/generic-index   (foreign-value "AVFMT_GENERIC_INDEX" int))
+(define fmt/ts-discont      (foreign-value "AVFMT_TS_DISCONT" int))
+(define fmt/variable-fps    (foreign-value "AVFMT_VARIABLE_FPS" int))
+(define fmt/nodimensions    (foreign-value "AVFMT_NODIMENSIONS" int))
+(define fmt/nostreams       (foreign-value "AVFMT_NOSTREAMS" int))
+(define fmt/nobinsearch     (foreign-value "AVFMT_NOBINSEARCH" int))
+(define fmt/nogensearch     (foreign-value "AVFMT_NOGENSEARCH" int))
+(define fmt/no-byte-seek    (foreign-value "AVFMT_NO_BYTE_SEEK" int))
+(define fmt/allow-flush     (foreign-value "AVFMT_ALLOW_FLUSH" int))
+(define fmt/ts-nonstrict    (foreign-value "AVFMT_TS_NONSTRICT" int))
+(define fmt/ts-negative     (foreign-value "AVFMT_TS_NEGATIVE" int))
+(define fmt/seek-to-pts     (foreign-value "AVFMT_SEEK_TO_PTS" int))
+
+(define avio/read           (foreign-value "AVIO_FLAG_READ" int))
+(define avio/write          (foreign-value "AVIO_FLAG_WRITE" int))
+(define avio/read_write     (foreign-value "AVIO_FLAG_READ_WRITE" int))
+(define avio/nonblock       (foreign-value "AVIO_FLAG_NONBLOCK" int))
+(define avio/direct         (foreign-value "AVIO_FLAG_DIRECT" int))
+
+;; ====================
+
 (define-record AVPacket ptr data) ;; data can be string/blob
 (define-record AVFormatContext ptr)
 (define-record AVStream ptr)
@@ -809,8 +840,6 @@ avfilter_register_all();
                    "return(buffer);")
   (obj->ptr obj) opt_flags flags key_val_sep pairs_sep))
 
-(define opt/search-children (foreign-value "AV_OPT_SEARCH_CHILDREN" int))
-(define opt/fake-obj        (foreign-value "AV_OPT_SEARCH_FAKE_OBJ" int))
 
 (define (opt-set obj name val #!optional (search-flags opt/search-children))
   (wrap-send/receive ((foreign-lambda int "av_opt_set_bin"
