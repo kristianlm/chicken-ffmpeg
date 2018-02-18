@@ -670,6 +670,82 @@ avfilter_register_all();
        ((foreign-lambda* void ((AVFormatContext fmtx)) "avformat_close_input(&fmtx);")
         fmtx))))
 
+(define (avformat-open-output format filename)
+
+  (define fmx
+    ((foreign-lambda*
+      AVFormatContext ((AVOutputFormat ofmt)
+                       (c-string ofmts) ;; format name
+                       (c-string filename))
+      "AVFormatContext *fmx = NULL;"
+      "avformat_alloc_output_context2(&fmx, ofmt, ofmts, filename);"
+      "return(fmx);")
+     (if (string? format) #f format) ;; AVOutputFormat
+     (if (string? format) format #f)
+     filename))
+
+  (unless fmx
+    (error 'avformat-open-output
+           "could not open output format context"))
+
+  (set-finalizer!
+   fmx
+   (lambda (fmx)
+     (print "freeing " fmx)
+     ((foreign-lambda* void ((AVFormatContext fmx))
+                       "
+if (!(fmx->oformat->flags & AVFMT_NOFILE))
+   avio_closep(&fmx->pb);
+
+avformat_free_context(fmx);")
+      fmx))))
+
+(define (avformat-new-stream! fmx #!optional codec)
+  (or ((foreign-lambda AVStream "avformat_new_stream"
+                       AVFormatContext AVCodec)
+       fmx codec)
+      (error 'avformat-new-stream! "could create stream from" fmx)))
+
+(define (avformat-write-header fmx)
+  (wrap-send/receive
+   ((foreign-lambda* int ((AVFormatContext fmx))
+                     "
+    if (!(fmx->oformat->flags & AVFMT_NOFILE)) {
+        int ret = avio_open(&fmx->pb, fmx->filename, AVIO_FLAG_WRITE);
+        if (ret < 0) {
+            fprintf(stderr, \"Could not open output file '%s'\", fmx->filename);
+            return -100;
+        }
+    }
+    return(avformat_write_header(fmx, NULL));
+") fmx)
+   fmx
+   'avformat-write-header))
+
+(define fmtx-write
+  (foreign-lambda int "av_interleaved_write_frame"
+                  AVFormatContext AVPacket))
+
+;; why are the prefixes avformat_ vs av_ not consistent?
+(define avformat-write-trailer
+  (foreign-lambda int "av_write_trailer" AVFormatContext))
+
+
+(define (guess-format short-name #!optional filename mime/type)
+  ((foreign-lambda AVOutputFormat "av_guess_format"
+                   (const c-string)
+                   (const c-string)
+                   (const c-string))
+   short-name filename mime/type))
+
+(define (guess-codec fmt media-type #!optional short-name filename mime/type)
+  ((foreign-lambda AVCodecID "av_guess_codec"
+                   AVOutputFormat
+                   c-string c-string c-string
+                   AVMediaType)
+   fmt short-name filename mime/type media-type))
+
+
 (define (find-decoder c)
   (if (string? c)
       ((foreign-lambda AVCodec "avcodec_find_decoder_by_name" c-string) c)
@@ -863,3 +939,17 @@ avfilter_register_all();
             (s32vector->blob/shared
              (list->s32vector (map AVPixelFormat->int pix-fmts))))))
 
+(define pix-fmt->tag
+  (foreign-lambda int "avcodec_pix_fmt_to_codec_tag" AVPixelFormat))
+
+
+(define av-interleaved-write-uncoded-frame
+  (foreign-lambda int "av_interleaved_write_uncoded_frame"
+                  AVFormatContext ;; *s
+                  int             ;; stream_index
+                  AVFrame))       ;; *frame
+
+(define av-write-uncoded-frame-query
+  (foreign-lambda int "av_write_uncoded_frame_query"
+                  AVFormatContext ;; *s
+                  int))           ;; stream_index
