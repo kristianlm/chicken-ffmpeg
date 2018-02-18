@@ -205,7 +205,7 @@ avfilter_register_all();
 
 
 (define (wrap-send/receive ret success loc)
-  (cond ((>= ret 0)                                   success)
+  (cond ((>= ret 0) success)
         ((= ret (foreign-value "AVERROR(EAGAIN)" int)) #f)
         ((= ret (foreign-value "AVERROR_EOF" int))     #!eof)
         ((= ret (foreign-value "AVERROR(EINVAL)" int)) (error loc "einval"))
