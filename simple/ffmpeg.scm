@@ -464,8 +464,10 @@ avfilter_register_all();
 
 ;; ==================== AVStream accessors ====================
 
-(define (stream-index stm)   (ƒget int ((AVStream stm)) "stm->index"))
-(define (stream-codecpar stm) (ƒget AVCodecParameters ((AVStream stm)) "stm->codecpar"))
+(define-getters ((AVStream x))
+  (stream-index    int               "x->index")
+  (stream-id       int               "x->id")
+  (stream-codecpar AVCodecParameters "x->codecpar"))
 
 (define-record-printer AVCodecParameters
   (lambda (x p)
