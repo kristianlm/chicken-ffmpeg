@@ -761,11 +761,17 @@ avfilter_register_all();
      (print "freeing " x)
      ((foreign-lambda* void ((AVFilterGraph x)) "avfilter_graph_free(&x);") x))))
 
-(define make-flx
-  (foreign-lambda AVFilterContext "avfilter_graph_alloc_filter"
-                  AVFilterGraph
-                  AVFilter
-                  c-string))
+(define (make-flx fg filter name #!optional (init-str ""))
+  (define flx
+    ((foreign-lambda AVFilterContext "avfilter_graph_alloc_filter"
+                     AVFilterGraph
+                     AVFilter
+                     c-string)
+     fg
+     (if (string? filter) (find-filter filter) filter)
+     name))
+  (avfilter-init-str flx init-str) ;; segfaults if this isn't run
+  flx)
 
 (define (avfilter-graph-config fg)
   (wrap-send/receive ((foreign-lambda int "avfilter_graph_config" AVFilterGraph c-pointer) fg #f)
