@@ -24,7 +24,27 @@ avformat_network_init();
 avfilter_register_all();
 "))
 
-(define-record AVPacket ptr)
+(define-syntax define-getters
+  (syntax-rules ()
+
+    ((_ ((argtype argname)) ) (begin))
+
+    ((_ ((argtype argname)) (name  rtype  str no-setter) rest ...)
+     (begin (define name
+              (foreign-lambda* rtype ((argtype argname)) "return(" str ");"))
+            (define-getters ((argtype argname)) rest ...)) )
+
+    ((_ ((argtype argname)) (name  rtype  str) rest ...)
+     (begin
+       (define name
+         (getter-with-setter
+          (foreign-lambda* rtype ((argtype argname)) "return(" str ");")
+          (lambda (x v)
+            ((foreign-lambda* void ((argtype argname) (rtype val))
+                                     str " = val;") x v))))
+       (define-getters ((argtype argname)) rest ...)))))
+
+(define-record AVPacket ptr data) ;; data can be string/blob
 (define-record AVFormatContext ptr)
 (define-record AVStream ptr)
 (define-record AVFrame ptr)
@@ -164,10 +184,15 @@ avfilter_register_all();
 
 ;; ==================== AVPacket ====================
 
-(define (packet-init pkt) (foreign-lambda* void ((AVPacket pkt)) "av_init_packet(pkt);"))
-(define (make-packet)
+(define (packet-init! pkt) (foreign-lambda* void ((AVPacket pkt)) "av_init_packet(pkt);"))
+
+;; (define (av-new-packet pkt size)
+;;   (wrap-send/receive ((foreign-lambda int av_new_packet) pkt size)
+;;                      pkt 'av-new-packet))
+
+(define (make-packet #!optional buf)
   (define pkt ((foreign-lambda* AVPacket () "return(av_packet_alloc());")))
-  (packet-init pkt)
+  (packet-init! pkt)
   (set-finalizer!
    pkt
    (lambda (pkt)
@@ -176,8 +201,16 @@ avfilter_register_all();
 
 (define packet-unref (foreign-lambda void "av_packet_unref" AVPacket))
 
-(define (packet-stream-index pkt) (ƒget int ((AVPacket pkt)) "pkt->stream_index"))
-(define (packet-size         pkt) (ƒget int ((AVPacket pkt)) "pkt->size"))
+(define-getters ((AVPacket x))
+  (packet-pts          integer64 "x->pts")
+  (packet-dts          integer64 "x->dts")
+  (packet-data*        c-pointer "x->data")
+  (packet-stream-index int       "x->stream_index")
+  (packet-size         int       "x->size")
+  (packet-stream-index int       "x->stream_index")
+  (packet-flags        int       "x->flags")
+  (packet-duration     int       "x->duration")
+  (packet-pos          int       "x->pos"))
 
 
 (define (packet-data pkt)
@@ -221,25 +254,6 @@ avfilter_register_all();
                      'fmtx-read))
 
 ;; ==================== AVCodecContext ====================
-(define-syntax define-getters
-  (syntax-rules ()
-
-    ((_ ((argtype argname)) ) (begin))
-
-    ((_ ((argtype argname)) (name  rtype  str no-setter) rest ...)
-     (begin (define name
-              (foreign-lambda* rtype ((argtype argname)) "return(" str ");"))
-            (define-getters ((argtype argname)) rest ...)) )
-
-    ((_ ((argtype argname)) (name  rtype  str) rest ...)
-     (begin
-       (define name
-         (getter-with-setter
-          (foreign-lambda* rtype ((argtype argname)) "return(" str ");")
-          (lambda (x v)
-            ((foreign-lambda* void ((argtype argname) (rtype val))
-                                     str " = val;") x v))))
-       (define-getters ((argtype argname)) rest ...)))))
 
 (define-getters ((AVFormatContext x))
   (fmtx-output-format    AVOutputFormat "x->oformat")
