@@ -25,7 +25,7 @@ avfilter_register_all();
 "))
 
 (define-syntax define-getters
-  (syntax-rules ()
+  (syntax-rules (AVRational)
 
     ((_ ((argtype argname)) ) (begin))
 
@@ -33,6 +33,18 @@ avfilter_register_all();
      (begin (define name
               (foreign-lambda* rtype ((argtype argname)) "return(" str ");"))
             (define-getters ((argtype argname)) rest ...)) )
+
+    ((_ ((argtype argname)) (name AVRational  str) rest ...)
+     (begin
+       (define name
+         (getter-with-setter
+          (lambda (x) (error 'todo))
+          (lambda (x v)
+            ((foreign-lambda* void ((argtype argname) (AVRational val))
+                                     str " = (AVRational){val[0],val[1]};") x v))))
+       (define-getters ((argtype argname)) rest ...)))
+
+
 
     ((_ ((argtype argname)) (name  rtype  str) rest ...)
      (begin
@@ -176,6 +188,8 @@ avfilter_register_all();
   (lambda (sym) (if (symbol? sym) (AVPixelFormat->int sym) sym))
   (lambda (int) (int->AVPixelFormat int)))
 
+(define-foreign-type AVRational s32vector)
+
 (define-syntax ƒget
   (syntax-rules ()
     ((_ rtype ((type arg)) body_str)
@@ -274,7 +288,7 @@ avfilter_register_all();
   (codecpar-level                  int                                  "cp->level")
   (codecpar-width                  int                                  "cp->width")
   (codecpar-height                 int                                  "cp->height")
-  ;;(codecpar-sample-aspect-ratio    AVRational                         "cp->sample_aspect_ratio")
+  (codecpar-sample-aspect-ratio    AVRational                           "cp->sample_aspect_ratio")
   ;;(codecpar-field-order            enum-AVFieldOrder                  "cp->field_order")
   ;;(codecpar-color-range            enum-AVColorRange                  "cp->color_range")
   ;;(codecpar-color-primaries        enum-AVColorPrimaries              "cp->color_primaries")
@@ -301,7 +315,7 @@ avfilter_register_all();
   (frame-format*                        int                                "x->format")
   (frame-key-frame                      int                                "x->key_frame")
   (frame-pict-type                      AVPictureType                      "x->pict_type")
-  ;;(frame-sample-aspect-ratio            AVRational                         "x->sample_aspect_ratio")
+  (frame-sample-aspect-ratio            AVRational                         "x->sample_aspect_ratio")
   (frame-pts                            integer64                          "x->pts")
   (frame-pkt-dts                        integer64                          "x->pkt_dts")
   (frame-coded-picture-number           int                                "x->coded_picture_number")
@@ -345,9 +359,8 @@ avfilter_register_all();
   (codecx-height int "x->height")
   (coodex-pix-fmt AVPixelFormat "x->pix_fmt")
   (codecx-bit-rate integer64 "x->bit_rate")
-  ;;(codecx-time-base AVRational "x->time_base")
-  ;;(codecx-framerate AVRational "x->framerate")
-  )
+  (codecx-time-base AVRational "x->time_base")
+  (codecx-framerate AVRational "x->framerate"))
 
 (define-getters ((AVCodec x))
   (codec-name      c-string  "x->name")
@@ -465,9 +478,11 @@ avfilter_register_all();
 ;; ==================== AVStream accessors ====================
 
 (define-getters ((AVStream x))
-  (stream-index    int               "x->index")
-  (stream-id       int               "x->id")
-  (stream-codecpar AVCodecParameters "x->codecpar"))
+  (stream-index            int               "x->index")
+  (stream-time-base        AVRational       "x->time_base")
+  (stream-avg-frame-rate   AVRational       "x->avg_frame_rate")
+  (stream-id               int               "x->id")
+  (stream-codecpar         AVCodecParameters "x->codecpar"))
 
 (define-record-printer AVCodecParameters
   (lambda (x p)
