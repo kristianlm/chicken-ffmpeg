@@ -800,7 +800,7 @@ avformat_free_context(fmx);")
   (foreign-lambda int "avcodec_parameters_to_context"
                   AVCodecContext AVCodecParameters))
 
-(define (avcodec-open cx codec)
+(define (avcodec-open cx #!optional codec)
   (print "avcodec_open2: "
          ((foreign-lambda* int ((AVCodecContext cx) (AVCodec codec))
                            "return(avcodec_open2(cx, codec, NULL));")
