@@ -832,13 +832,13 @@ avformat_free_context(fmx);")
                       cx pkt)
                      pkt   'avcodec-send-packet))
 
-(define (avcodec-send-frame cx #!optional (frame (make-frame)))
+(define (avcodec-send-frame cx frame)
   (wrap-send/receive ((foreign-lambda int "avcodec_send_frame"
                                       AVCodecContext AVFrame)
                       cx frame)
                      frame 'avcodec-send-frame))
 
-(define (avcodec-receive-packet cx pkt)
+(define (avcodec-receive-packet cx #!optional (pkt (make-packet)))
   (wrap-send/receive ((foreign-lambda int "avcodec_receive_packet"
                                       AVCodecContext AVPacket)
                       cx pkt)
