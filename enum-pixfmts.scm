@@ -1,13 +1,3 @@
-(foreign-declare "
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-//#include <libavdevice/avdevice.h>
-//#include <libavutil/time.h>
-")
-
-(include "foreign-enum.scm")
-
-(include "enum-codecs.scm")
 
 (define pixfmts
   (foreign-enum

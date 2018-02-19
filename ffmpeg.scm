@@ -106,8 +106,6 @@ avfilter_register_all();
 (define-record AVInputFormat ptr)
 (define-record AVOutputFormat ptr)
 
-;;(load "enum-pixfmts.so")
-(include "foreign-enum.scm")
 
 (define AVMediaTypes
   (foreign-enum
