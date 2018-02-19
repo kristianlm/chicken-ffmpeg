@@ -40,7 +40,7 @@ avfilter_register_all();
      (begin
        (define name
          (getter-with-setter
-          (lambda (x) (error 'todo))
+          (lambda (x) (error "TODO: sorry, no AVRational return type yet"))
           (lambda (x v)
             ((foreign-lambda* void ((argtype argname) (AVRational val))
                                      str " = (AVRational){val[0],val[1]};") x v))))
