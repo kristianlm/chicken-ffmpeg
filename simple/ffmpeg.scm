@@ -13,6 +13,7 @@
 #include <libavfilter/avfilter.h>
 #include <libavdevice/avdevice.h>
 #include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
 //#include <libavutil/time.h>
 ")
 
@@ -85,6 +86,10 @@ avfilter_register_all();
 (define avio/read_write     (foreign-value "AVIO_FLAG_READ_WRITE" int))
 (define avio/nonblock       (foreign-value "AVIO_FLAG_NONBLOCK" int))
 (define avio/direct         (foreign-value "AVIO_FLAG_DIRECT" int))
+
+(define buffersrc/no-check-format (foreign-value "AV_BUFFERSRC_FLAG_NO_CHECK_FORMAT" int))
+(define buffersrc/push            (foreign-value "AV_BUFFERSRC_FLAG_PUSH" int))
+(define buffersrc/keep-ref        (foreign-value "AV_BUFFERSRC_FLAG_KEEP_REF" int))
 
 ;; ====================
 
@@ -900,6 +905,14 @@ avformat_free_context(fmx);")
   (wrap-send/receive ((foreign-lambda int "av_buffersink_get_frame" AVFilterContext AVFrame)
                       fx frame)
                      frame 'av-buffersink-get-frame))
+
+(define (av-buffersrc-add-frame bufferfx frame #!optional (flags buffersrc/keep-ref))
+  (wrap-send/receive
+   ((foreign-lambda int "av_buffersrc_add_frame_flags"
+                    AVFilterContext AVFrame int)
+    bufferfx frame flags)
+   frame
+   'av-buffersrc-add-frame))
 
 (define (av-frame-get-buffer frame align)
   (wrap-send/receive ((foreign-lambda int "av_frame_get_buffer" AVFrame int) frame align)
