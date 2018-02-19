@@ -283,12 +283,15 @@ avfilter_register_all();
 (define packet-data
   (getter-with-setter
    (lambda (pkt)
-     (define buf (make-u8vector (packet-size pkt)))
-     ((foreign-lambda* void (((c-pointer "AVPacket") pkt) (u8vector buf) (int size))
-                       "memcpy(buf, pkt->data, size);")
-      (AVPacket-ptr pkt)
-      buf
-      (packet-size pkt))
+     (if pkt
+         (begin
+           (define buf (make-u8vector (packet-size pkt)))
+           ((foreign-lambda* void (((c-pointer "AVPacket") pkt) (u8vector buf) (int size))
+                             "memcpy(buf, pkt->data, size);")
+            (AVPacket-ptr pkt)
+            buf
+            (packet-size pkt)))
+         #f)
      buf)
    packet-data-set!))
 
