@@ -1,6 +1,4 @@
-/simple/ffmpeg-test
-/simple/grabtest
-/simple/encode
-/decode_video
-/simple/ffmpeg
-/simple/out.png
+/ffmpeg.import.scm
+/ffmpeg.import.so
+/ffmpeg.so
+/out.png
