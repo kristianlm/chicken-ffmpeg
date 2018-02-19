@@ -93,7 +93,7 @@ avfilter_register_all();
 
 ;; ====================
 
-(define-record AVPacket ptr data) ;; data can be string/blob
+(define-record AVPacket ptr)
 (define-record AVFormatContext ptr)
 (define-record AVStream ptr)
 (define-record AVFrame ptr)
