@@ -2,7 +2,8 @@
 
 (unless (= 1 (length (command-line-arguments)))
   (print "usage: csi -s packets.scm <media-file>
-  reads all packets and print their info"))
+  reads all packets and print their info")
+  (exit))
 
 (define fmx (avformat-open-input (list-ref (command-line-arguments) 0)))
 (print "fmx: " fmx)
