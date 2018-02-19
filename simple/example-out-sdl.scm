@@ -32,15 +32,15 @@
 
 (avformat-write-header fmx) ;; this should open the SDL output window
 (define frame (make-frame))
-(define pkt (make-packet ))
+(define pkt (make-packet))
 
-(repeat (* 25 1)
+(repeat 1000
   (av-buffersink-get-frame out frame)
   (set! (packet-data pkt) (frame-data frame 0))
   (frame-unref frame)
   (fmtx-write fmx pkt))
 
-(avformat-write-trailer fmx)
+(avformat-write-trailer fmx) ;; this should close the SDL output window
 
 ;;(repl)
 
