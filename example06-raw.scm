@@ -1,5 +1,9 @@
 (use ffmpeg miscmacros)
 
+;; note that this example does not use frames. it constructs a packet
+;; manually, which is probably not something that you would normally
+;; do.
+
 (begin
   (define fmx (avformat-open-output #f "hi.mkv"))
   (define stm (avformat-new-stream! fmx))
