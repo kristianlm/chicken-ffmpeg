@@ -161,7 +161,7 @@ avfilter_register_all();
 
 (define-foreign-type AVPacket (c-pointer "AVPacket")
   (lambda (x)   (and x   (AVPacket-ptr x)))
-  (lambda (ptr) (and ptr (make-AVPacket ptr #f))))
+  (lambda (ptr) (and ptr (make-AVPacket ptr))))
 
 (define-foreign-type AVFormatContext (c-pointer "AVFormatContext")
   (lambda (x)   (and x   (AVFormatContext-ptr x)))
