@@ -262,17 +262,6 @@ avfilter_register_all();
 
 (define packet-unref (foreign-lambda void "av_packet_unref" AVPacket))
 
-(define-getters packet ((AVPacket x))
-  (pts          integer64 "x->pts")
-  (dts          integer64 "x->dts")
-  (data*        c-pointer "x->data")
-  (stream-index int       "x->stream_index")
-  (size         int       "x->size")
-  (stream-index int       "x->stream_index")
-  (flags        int       "x->flags")
-  (duration     int       "x->duration")
-  (pos          int       "x->pos"))
-
 (define input-buffer-padding-size
   (foreign-value "AV_INPUT_BUFFER_PADDING_SIZE" int))
 
@@ -337,6 +326,17 @@ avfilter_register_all();
                      'fmtx-read))
 
 ;; ==================== AVCodecContext ====================
+
+(define-getters packet ((AVPacket x))
+  (pts          integer64 "x->pts")
+  (dts          integer64 "x->dts")
+  (data*        c-pointer "x->data")
+  (stream-index int       "x->stream_index")
+  (size         int       "x->size")
+  (stream-index int       "x->stream_index")
+  (flags        int       "x->flags")
+  (duration     int       "x->duration")
+  (pos          int       "x->pos"))
 
 (define-getters fmtx ((AVFormatContext x))
   (output-format    AVOutputFormat "x->oformat")
