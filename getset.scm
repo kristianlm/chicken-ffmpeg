@@ -1,23 +1,5 @@
 (use (only srfi-69 make-hash-table hash-table-ref hash-table-set! hash-table-fold))
 
-;; example usecase:
-;;
-;; (foreign-declare "
-;; struct Point {
-;;   int x, y, z;
-;; };
-;; ")
-;; (define-getters point (((c-pointer "struct Point") x))
-;;   (x int "x->x")
-;;   (y int "x->y")
-;;   (z int "x->z"))
-;; (define point ((foreign-lambda* c-pointer () "return(malloc(sizeof(struct Point)));")))
-;; (print "point: " point)
-;; (set! (point-x point) 400)
-;; (print "point-fields: " (point-fields point))
-;; (set! (point-fields point) '(z: -1 y: -20))
-;; (print "point-fields: " (point-fields point))
-
 
 (define-syntax syntax-concat
   (er-macro-transformer
