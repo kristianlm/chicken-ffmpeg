@@ -26,44 +26,8 @@ avformat_network_init();
 avfilter_register_all();
 "))
 
-;; (define-concat (a b) #t) ==> a-b
-(define-syntax define-concat
-  (er-macro-transformer
-   (lambda (x r t)
-     (let ((name (string->symbol (string-join (map conc (cadr x)) "-"))))
-       `(,(r 'define) ,name ,@(cddr x))))))
-
-(define-syntax define-getters
-  (syntax-rules (AVRational)
-
-    ((_ record ((argtype argname)) ) (begin))
-
-    ((_ record ((argtype argname)) (field rtype  str no-setter) rest ...)
-     (begin (define-concat (record field)
-              (foreign-lambda* rtype ((argtype argname)) "return(" str ");"))
-            (define-getters record ((argtype argname)) rest ...)) )
-
-    ((_ record ((argtype argname)) (field AVRational  str) rest ...)
-     (begin
-       (define-concat (record field)
-         (getter-with-setter
-          (lambda (x) (error "TODO: sorry, no AVRational return type yet"))
-          (lambda (x v)
-            ((foreign-lambda* void ((argtype argname) (AVRational val))
-                                     str " = (AVRational){val[0],val[1]};") x v))))
-       (define-getters record ((argtype argname)) rest ...)))
-
-
-
-    ((_ record ((argtype argname)) (field  rtype  str) rest ...)
-     (begin
-       (define-concat (record field)
-         (getter-with-setter
-          (foreign-lambda* rtype ((argtype argname)) "return(" str ");")
-          (lambda (x v)
-            ((foreign-lambda* void ((argtype argname) (rtype val))
-                                     str " = val;") x v))))
-       (define-getters record ((argtype argname)) rest ...)))))
+;; ==================== (define-getters ...) and friends ====================
+(include "getset.scm")
 
 ;; ==================== FLAGS ====================
 
@@ -250,15 +214,16 @@ avfilter_register_all();
 ;;   (wrap-send/receive ((foreign-lambda int av_new_packet) pkt size)
 ;;                      pkt 'av-new-packet))
 
-(define (make-packet #!optional buf)
+(define (make-packet . fields)
   (define pkt ((foreign-lambda* AVPacket () "return(av_packet_alloc());")))
   (packet-init! pkt)
-  (when buf (packet-data-set! pkt buf))
   (set-finalizer!
    pkt
    (lambda (pkt)
      (print "freeing " pkt)
-     ((foreign-lambda* void ((AVPacket pkt)) "av_packet_free(&pkt);") pkt))))
+     ((foreign-lambda* void ((AVPacket pkt)) "av_packet_free(&pkt);") pkt)))
+  (set! (packet-fields pkt) fields)
+  pkt)
 
 (define packet-unref (foreign-lambda void "av_packet_unref" AVPacket))
 
@@ -490,11 +455,14 @@ avfilter_register_all();
 
 ;; ==================== AVFrame ====================
 
-(define (make-frame #!key w h fmt)
-  (set-finalizer! ((foreign-lambda AVFrame "av_frame_alloc"))
-                  (lambda (x)
-                    (print "freeing frame " x)
-                    ((foreign-lambda* void ((AVFrame frame)) "av_frame_free(&frame);") x))))
+(define (make-frame . fields)
+  (define frame
+    (set-finalizer! ((foreign-lambda AVFrame "av_frame_alloc"))
+                   (lambda (x)
+                     (print "freeing frame " x)
+                     ((foreign-lambda* void ((AVFrame frame)) "av_frame_free(&frame);") x))))
+  (set! (frame-fields frame) fields)
+  frame)
 
 (define frame-unref (foreign-lambda void "av_frame_unref" AVFrame))
 
@@ -547,6 +515,7 @@ avfilter_register_all();
            (cond ((AVPixelFormat->int* x)) ;; * => no error if missing
                  ((AVSampleFormat->int x))
                  (else x))))))
+(getter-add-field! frame format)
 
 (define codecpar-format
   (getter-with-setter
@@ -596,64 +565,56 @@ avfilter_register_all();
 
 (define-record-printer AVPacket
   (lambda (pkt p)
-    (display "#<AVPacket" p)
-    (display " #" p) (display (packet-stream-index pkt) p)
-    (display " bytes:" p) (display (packet-size pkt) p)
+    (display "#<AVPacket " p)
+    (write (packet-fields pkt) p)
     (display ">" p)))
 
 (define-record-printer AVStream
   (lambda (stm p)
     (display "#<AVStream " p)
-    (display "#" p) (display (stream-index stm) p)
-    (display " " p) (display (stream-codecpar stm) p)
+    (write (stream-fields) p)
     (display ">" p)))
 
 (define-record-printer AVCodec
   (lambda (x p)
     (display "#<AVCodec " p)
-    (display (codec-type x) p) (display ":" p) (display (codec-id x) p)
-    (display " \"" p) (display (codec-long-name x) p) (display "\"" p)
+    (write (codec-fields) p)
     (display ">" p)))
 
 (define-record-printer AVFilter
   (lambda (x p)
     (display "#<AVFilter " p)
-    (display (filter-name x) p)
-    (display " \"" p) (display (filter-description x) p) (display "\"" p)
+    (write (filter-fields x) p)
     (display ">" p)))
 
 (define-record-printer AVFilterContext
   (lambda (x p)
     (display "#<AVFilterContext " p)
-    (display (filter-name (filterx-filter x)) p)
-    (display " " p)
-    (display (filterx-name x) p)
+    (write (filterx-fields x) p)
     (display ">" p)))
 
 (define-record-printer AVFilterGraph
   (lambda (x p)
     (display "#<AVFilterGraph " p)
-    (display (filterg-filter-count x) p)
-    (display " " p)
-    (display (filterg-sink-links-count x) p)
+    (write (filterg-fields x) p)
     (display ">" p)))
 
 (define-record-printer AVInputFormat
   (lambda (x p)
     (display "#<AVInputFormat " p)
-    (display (input-format-name x) p)
+    (write (input-format-fields x) p)
     (display ">" p)))
 
 (define-record-printer AVOutputFormat
   (lambda (x p)
     (display "#<AVOutputFormat " p)
-    (display (output-format-name x) p)
+    (write (output-format-name x) p)
     (display ">" p)))
 
 (define-record-printer AVCodecContext
   (lambda (x p)
     (display "#<AVCodecContext " p)
-    (display (AVCodecContext-ptr x) p)
+    (write (codecx-fields x) p)
     (display ">" p)))
 
 (define-record-printer AVFormatContext
@@ -667,13 +628,8 @@ avfilter_register_all();
 
 (define-record-printer AVFrame
   (lambda (x p)
-    (display "#<AVFrame" p)
-    (display " format:" p) (display (frame-format x) p)
-    (when (and (not (zero? (frame-width x)))
-               (not (zero? (frame-height x))))
-      (display " size:") (display (frame-width x) p) (display "x" p) (display (frame-height x) p))
-    (when (and (not (zero? (frame-sample-count x))))
-      (display " samples: " (frame-sample-count x)))
+    (display "#<AVFrame " p)
+    (write (frame-fields x) p)
     (display ">" p)))
 
 (define (av_dump_format! fmtx #!optional (filename ""))
@@ -825,7 +781,7 @@ avformat_free_context(fmx);")
      (print "freeing " cx)
      ((foreign-lambda* void ((AVCodecContext cx)) "avcodec_free_context(&cx);") cx))))
 
-(define (make-codecx stream/codec)
+(define (make-codecx stream/codec . fields)
 
   (define cx (avcodec-alloc-context #f))
   (cond
@@ -838,6 +794,7 @@ avformat_free_context(fmx);")
    ((AVCodec? stream/codec))
 
    (else (error 'make-codecx "not a stream or codec" stream/codec)))
+  (set! (codecx-fields cx) fields)
   cx)
 
 (define (avcodec-send-packet cx pkt)
