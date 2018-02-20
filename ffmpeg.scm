@@ -571,13 +571,13 @@ avfilter_register_all();
 (define-record-printer AVStream
   (lambda (stm p)
     (display "#<AVStream " p)
-    (write (stream-fields) p)
+    (write (stream-fields stm) p)
     (display ">" p)))
 
 (define-record-printer AVCodec
   (lambda (x p)
     (display "#<AVCodec " p)
-    (write (codec-fields) p)
+    (write (codec-fields x) p)
     (display ">" p)))
 
 (define-record-printer AVFilter
