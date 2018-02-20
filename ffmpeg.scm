@@ -782,13 +782,18 @@ avformat_free_context(fmx);")
 
 (define (make-codecx stream/codec . fields)
 
-  (define cx (avcodec-alloc-context (if (AVCodec? stream/codec) stream/codec #f)))
-  (when
-   (AVStream? stream/codec)
-   (define cp (stream-codecpar stream/codec))
-   (define codec (find-decoder (codecpar-id cp)))
-   (avcodec_parameters_to_context cx cp))
-  (set! (codecx-fields cx) fields)
+  (define cx (avcodec-alloc-context #f))
+  (cond ((AVStream? stream/codec)
+         (define cp (stream-codecpar stream/codec))
+         (define codec (find-decoder (codecpar-id cp)))
+         (avcodec_parameters_to_context cx cp)
+         (set! (codecx-fields cx) fields)
+         (avcodec-open cx codec))
+        ((AVCodec? stream/codec)
+         (set! (codecx-fields cx) fields)
+         (avcodec-open cx))
+        (else (error 'make-codecx "argument 1 not AVStream or AVCodec " stream/codec)))
+
   cx)
 
 (define (avcodec-send-packet cx pkt)
