@@ -22,7 +22,7 @@
                  width: 8
                  height: 8
                  pix-fmt: 'gray8
-                 time-base: (s32vector 1 1)))
+                 time-base: (vector 1 1)))
   (avcodec-open png #f)
   (define frame (av-buffersink-get-frame out))
   (print "got frame " frame)

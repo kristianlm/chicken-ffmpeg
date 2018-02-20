@@ -62,10 +62,17 @@
      (begin
        (define-concat (record "-" field)
          (getter-with-setter
-          (lambda (x) '*TODO*)
+          (lambda (x)
+             (let ((vec (make-vector 2)))
+               ((foreign-lambda* void ((argtype argname) (scheme-object v))
+                                 "C_block_item(v, 0) = C_fix((" str ").num);"
+                                 "C_block_item(v, 1) = C_fix((" str ").den);")
+                x vec)
+               vec))
           (lambda (x v)
-            ((foreign-lambda* void ((argtype argname) (AVRational val))
-                                     str " = (AVRational){val[0],val[1]};") x v))))
+            ((foreign-lambda* void ((argtype argname) (int num) (int den))
+                              str " = (AVRational){num,den};")
+             x (vector-ref v 0) (vector-ref v 1)))))
        (getter-add-field! record field)
        (define-getters* record ((argtype argname)) rest ...)))
 

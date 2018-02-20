@@ -197,7 +197,7 @@ avfilter_register_all();
   (lambda (sym) (if (symbol? sym) (AVSampleFormat->int sym) sym))
   (lambda (int) (int->AVSampleFormat int)))
 
-(define-foreign-type AVRational s32vector)
+(define-foreign-type AVRational (c-pointer "AVRational"))
 
 (define-syntax ƒget
   (syntax-rules ()
