@@ -825,18 +825,19 @@ avformat_free_context(fmx);")
      (print "freeing " cx)
      ((foreign-lambda* void ((AVCodecContext cx)) "avcodec_free_context(&cx);") cx))))
 
-(define (codecx stream/codec #!optional cp (open? #t))
+(define (make-codecx stream/codec)
 
-  (define codec
-    (if (AVStream? stream/codec)
-        (begin (set! cp (stream-codecpar stream/codec))
-               (find-decoder (codecpar-id cp)))
-        stream/codec))
+  (define cx (avcodec-alloc-context #f))
+  (cond
+   ((AVStream? stream/codec)
+    (define cp (stream-codecpar stream/codec))
+    (define codec (find-decoder (codecpar-id cp)))
+    (avcodec_parameters_to_context cx cp)
+    (avcodec-open cx codec))
 
-  (assert (AVCodec? codec))
-  (define cx (avcodec-alloc-context codec))
-  (when cp (avcodec_parameters_to_context cx cp))
-  (when open? (avcodec-open cx codec))
+   ((AVCodec? stream/codec))
+
+   (else (error 'make-codecx "not a stream or codec" stream/codec)))
   cx)
 
 (define (avcodec-send-packet cx pkt)
