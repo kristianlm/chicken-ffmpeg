@@ -766,10 +766,12 @@ avformat_free_context(fmx);")
                   AVCodecContext AVCodecParameters))
 
 (define (avcodec-open cx #!optional codec)
-  (print "avcodec_open2: "
+  (wrap-send/receive
          ((foreign-lambda* int ((AVCodecContext cx) (AVCodec codec))
                            "return(avcodec_open2(cx, codec, NULL));")
-          cx codec)))
+          cx codec)
+         cx
+         'avcodec-open))
 
 (define (avcodec-alloc-context codec)
   (set-finalizer!
