@@ -55,16 +55,18 @@
     ((_ record ((argtype argname)) (field rtype  str no-setter) rest ...)
      (begin (define-concat (record "-" field)
               (foreign-lambda* rtype ((argtype argname)) "return(" str ");"))
+            (getter-add-field! record field)
             (define-getters* record ((argtype argname)) rest ...)) )
 
     ((_ record ((argtype argname)) (field AVRational  str) rest ...)
      (begin
        (define-concat (record "-" field)
          (getter-with-setter
-          (lambda (x) (error "TODO: sorry, no AVRational return type yet"))
+          (lambda (x) '*TODO*)
           (lambda (x v)
             ((foreign-lambda* void ((argtype argname) (AVRational val))
                                      str " = (AVRational){val[0],val[1]};") x v))))
+       (getter-add-field! record field)
        (define-getters* record ((argtype argname)) rest ...)))
 
     ((_ record ((argtype argname)) (field  rtype  str) rest ...)

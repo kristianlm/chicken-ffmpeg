@@ -10,21 +10,19 @@
   (avfilter-graph-config fg))
 
 (begin
-  (define frame (make-frame))
-  (set! (frame-width frame) 16)
-  (set! (frame-height frame) 16)
-  (set! (frame-format frame) 'gray8)
+  (define frame (make-frame width: 16 height: 16 format: 'gray8))
   (frame-get-buffer frame 32)
   (frame-make-writable frame)
   ;; TODO: implement frame-data-set!
   (av-buffersrc-add-frame in frame))
 
 (begin
-  (define png (avcodec-alloc-context (find-encoder "png")))
-  (set! (codecx-width png) 8)
-  (set! (codecx-height png) 8)
-  (set! (codecx-pix-fmt png) 'gray8)
-  (set! (codecx-time-base png) (s32vector 1 1))
+  (define png
+    (make-codecx (find-encoder "png")
+                 width: 8
+                 height: 8
+                 pix-fmt: 'gray8
+                 time-base: (s32vector 1 1)))
   (avcodec-open png #f)
   (define frame (av-buffersink-get-frame out))
   (print "got frame " frame)

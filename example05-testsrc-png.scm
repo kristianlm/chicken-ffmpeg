@@ -9,11 +9,11 @@
   (avfilter-graph-config fg))
 
 (begin
-  (define png (avcodec-alloc-context (find-encoder "png")))
-  (set! (codecx-width png) 256)
-  (set! (codecx-height png) 256)
-  (set! (codecx-pix-fmt png) 'rgb24)
-  (set! (codecx-time-base png) (s32vector 1 1))
+  (define png (make-codecx (find-encoder "png")
+                           width: 256
+                           height: 256
+                           pix-fmt: 'rgb24
+                           time-base: (vector 1 1)))
   (avcodec-open png #f)
   (avcodec-send-frame png (av-buffersink-get-frame out))
 
