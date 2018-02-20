@@ -296,7 +296,7 @@ avfilter_register_all();
   (dts          integer64 "x->dts")
   (data*        c-pointer "x->data")
   (stream-index int       "x->stream_index")
-  (size         int       "x->size")
+  (size         int       "x->size" no-setter)
   (stream-index int       "x->stream_index")
   (flags        int       "x->flags")
   (duration     int       "x->duration")
