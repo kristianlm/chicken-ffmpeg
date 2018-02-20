@@ -14,7 +14,6 @@
 #include <libavdevice/avdevice.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
-//#include <libavutil/time.h>
 ")
 
 ;; ==================== init ====================
