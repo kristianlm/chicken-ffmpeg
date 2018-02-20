@@ -253,9 +253,9 @@ avfilter_register_all();
                              "memcpy(buf, pkt->data, size);")
             (AVPacket-ptr pkt)
             buf
-            (packet-size pkt)))
-         #f)
-     buf)
+            (packet-size pkt))
+           buf)
+         #f))
    packet-data-set!))
 
 ;; ==================== AVFormatContext accessors ====================
