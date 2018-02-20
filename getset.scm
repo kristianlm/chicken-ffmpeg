@@ -1,4 +1,7 @@
-(use (only srfi-69 make-hash-table hash-table-ref hash-table-set! hash-table-fold))
+(use (only data-structures sort)
+     (only srfi-1 append-map)
+     (only srfi-13 string<=)
+     (only srfi-69 make-hash-table hash-table-ref hash-table-set! hash-table->alist))
 
 
 (define-syntax syntax-concat
@@ -27,9 +30,13 @@
        (getter-with-setter
         (lambda (x)
           ;; return plist, eg (x: 10 y: 1)
-          (hash-table-fold (syntax-concat "*" record "-fields*")
-                           (lambda (k v s) (cons k (cons (v x) s)))
-                           '()))
+          (append-map
+           (lambda (pair)
+             (let ((key (car pair))
+                   (getter (cdr pair)))
+               (list key (getter x))))
+           (sort (hash-table->alist (syntax-concat "*" record "-fields*"))
+                 (lambda (a b) (string<= (conc (car a)) (conc (car b)))))))
         (lambda (x plist)
           (let loop ((plist plist))
             (when (pair? plist)
