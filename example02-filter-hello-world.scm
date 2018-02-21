@@ -1,7 +1,7 @@
 (use ports ffmpeg)
 
 (define (cls) (display "\x1b[2J"))
-(define (reset-cursor) (display "\x1b[u"))
+(define (reset-cursor) (display "\x1b[u\r"))
 
 ; TODO: make it pretty, like this
 ;; (define-flg

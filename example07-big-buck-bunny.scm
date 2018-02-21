@@ -16,7 +16,7 @@
 (use ffmpeg ports)
 
 (define (cls) (display "\x1b[2J"))
-(define (reset-cursor) (display "\x1b[u"))
+(define (reset-cursor) (display "\x1b[u\r"))
 
 (define (display-frame frame)
   (let ((data (frame-data frame 0)))
