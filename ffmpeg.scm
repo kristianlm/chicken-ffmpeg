@@ -943,6 +943,15 @@ avformat_free_context(fmx);")
                       (obj->ptr obj) name val (u8vector-length val) search-flags)
                      #t 'opt-set))
 
+(define (opt-set/int obj name val #!optional (search-flags opt/search-children))
+  (wrap-send/receive ((foreign-lambda int "av_opt_set_int"
+                                      c-pointer
+                                      (const c-string) ;; name
+                                      integer64        ;; val
+                                      int)             ;; flags
+                      (obj->ptr obj) name val search-flags)
+                     #t 'opt-set/int))
+
 (define (opt-set-pix-fmts obj pix-fmts)
   (opt-set obj "pix_fmts"
            (blob->u8vector/shared
