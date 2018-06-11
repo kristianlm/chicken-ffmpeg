@@ -4,7 +4,7 @@
 
 # chicken-ffmpeg
 
-[ffmpeg] bindings for [CHICKEN Scheme].
+[ffmpeg] 3.4 bindings for [CHICKEN Scheme] 4.
 
 The status of this egg is early alpha. [ffmpeg] is an ambitious API
 and not all of it is accessible from this egg. However, it's complete
